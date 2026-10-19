@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CameraStatus } from '../tracking/CameraManager';
+import { TrackerStatus } from '../tracking/HandTracker';
 import { Point2D } from '../types';
 import { RefreshCw, MousePointer, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface CalibrationOverlayProps {
   cameraStatus: CameraStatus;
+  trackerStatus: TrackerStatus;
   errorMessage?: string;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   currentFingertip: Point2D | null;
@@ -17,6 +19,7 @@ interface CalibrationOverlayProps {
 
 export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
   cameraStatus,
+  trackerStatus,
   errorMessage,
   videoRef,
   currentFingertip,
@@ -28,6 +31,22 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
 }) => {
   const [holdProgress, setHoldProgress] = useState(0); // 0 to 100
   const [isCalibrated, setIsCalibrated] = useState(false);
+
+  // The tracker reads frames from the game's own video element (videoRef); this preview
+  // only mirrors the same stream so unmounting the overlay never disconnects tracking
+  const previewRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const preview = previewRef.current;
+    const source = videoRef.current;
+    if (!preview || !source || cameraStatus !== 'ready') return;
+    preview.srcObject = source.srcObject;
+    preview.play().catch(() => {
+      // Autoplay of a muted preview can be interrupted; the live tracker is unaffected
+    });
+    return () => {
+      preview.srcObject = null;
+    };
+  }, [cameraStatus, videoRef]);
 
   // Check if fingertip is inside center calibration circle
   useEffect(() => {
@@ -72,7 +91,7 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
       {/* Background Live Webcam Video (mirrored) */}
       <div className="relative w-full max-w-2xl aspect-video rounded-3xl overflow-hidden border-2 border-cyan-500/40 shadow-[0_0_50px_rgba(0,229,255,0.2)] bg-gray-950 flex items-center justify-center">
         <video
-          ref={videoRef}
+          ref={previewRef}
           autoPlay
           muted
           playsInline
@@ -118,8 +137,40 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
           </div>
         )}
 
+        {cameraStatus === 'ready' && trackerStatus === 'loading' && (
+          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3">
+            <RefreshCw className="animate-spin text-cyan-400" size={40} />
+            <p className="text-sm font-medium text-cyan-200">Loading hand tracking model...</p>
+            <p className="text-xs text-gray-400">First load downloads a few MB and can take a moment</p>
+          </div>
+        )}
+
+        {cameraStatus === 'ready' && trackerStatus === 'error' && (
+          <div className="absolute inset-0 bg-black/90 p-6 flex flex-col items-center justify-center gap-4 text-center">
+            <AlertCircle className="text-red-400" size={48} />
+            <div className="max-w-md">
+              <h3 className="text-lg font-bold text-red-300">Hand Tracking Unavailable</h3>
+              <p className="text-xs text-gray-300 mt-1">{errorMessage || 'Hand tracker could not be loaded.'}</p>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={onRetryCamera}
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold flex items-center gap-2 transition-all active:scale-95"
+              >
+                <RefreshCw size={14} /> Retry
+              </button>
+              <button
+                onClick={onSwitchToMouse}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold flex items-center gap-2 transition-all active:scale-95"
+              >
+                <MousePointer size={14} /> Play with Mouse / Touch
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Calibration Target Circle */}
-        {cameraStatus === 'ready' && (
+        {cameraStatus === 'ready' && trackerStatus !== 'loading' && trackerStatus !== 'error' && (
           <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
             <div className="relative w-44 h-44 rounded-full border-2 border-dashed border-cyan-400/60 flex items-center justify-center transition-all duration-300">
               {/* Radial Progress Ring */}

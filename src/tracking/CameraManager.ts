@@ -51,15 +51,15 @@ export class CameraManager {
    * Initializes webcam with robust error handling and timeout protection
    */
   public async startCamera(): Promise<boolean> {
-    this.isCleanedUp = false;
-
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.setStatus('unsupported', 'Camera access (navigator.mediaDevices.getUserMedia) is not supported in this browser or context.');
       return false;
     }
 
-    // Stop existing stream if any
+    // Stop existing stream if any. stopCamera() marks the manager as cleaned up,
+    // so the flag must be reset afterwards or the new stream is discarded on arrival
     this.stopCamera();
+    this.isCleanedUp = false;
 
     this.setStatus('requesting');
 
@@ -71,10 +71,11 @@ export class CameraManager {
     this.video.muted = true;
     this.video.playsInline = true;
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       // 10 second timeout promise
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('CAMERA_TIMEOUT')), 10000);
+        timeoutId = setTimeout(() => reject(new Error('CAMERA_TIMEOUT')), 10000);
       });
 
       const mediaPromise = navigator.mediaDevices.getUserMedia({
@@ -88,6 +89,7 @@ export class CameraManager {
       });
 
       const stream = await Promise.race([mediaPromise, timeoutPromise]);
+      clearTimeout(timeoutId);
       if (this.isCleanedUp) {
         // Cancelled during setup
         stream.getTracks().forEach((track) => track.stop());
@@ -121,6 +123,7 @@ export class CameraManager {
       this.setStatus('ready');
       return true;
     } catch (err: unknown) {
+      clearTimeout(timeoutId);
       const error = err as Error;
       if (this.isCleanedUp) return false;
 

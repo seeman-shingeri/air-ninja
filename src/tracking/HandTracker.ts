@@ -81,48 +81,40 @@ export class HandTracker {
     this.isCleanedUp = false;
     this.setStatus('loading');
 
+    // forVisionTasks only builds paths; the wasm is actually fetched in createFromOptions,
+    // so a missing local runtime only surfaces there. Try local, then CDN, each GPU then CPU.
+    const wasmSources = ['/wasm', 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm'];
+    const modelPath = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+    let lastError: unknown = null;
+
     try {
-      // 1. Resolve vision tasks wasm (try local first, fallback to CDN)
-      let vision;
-      try {
-        vision = await FilesetResolver.forVisionTasks('/wasm');
-      } catch (e) {
-        console.warn('[HandTracker] Local wasm failed, trying CDN fallback:', e);
-        vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/wasm');
+      for (const wasmPath of wasmSources) {
+        const vision = await FilesetResolver.forVisionTasks(wasmPath);
+        for (const delegate of ['GPU', 'CPU'] as const) {
+          if (this.isCleanedUp) return false;
+          try {
+            this.landmarker = await HandLandmarker.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: modelPath,
+                delegate,
+              },
+              runningMode: 'VIDEO',
+              numHands: 1,
+              minHandDetectionConfidence: 0.5,
+              minHandPresenceConfidence: 0.5,
+              minTrackingConfidence: 0.5,
+            });
+            break;
+          } catch (e) {
+            lastError = e;
+            console.warn(`[HandTracker] Failed to load (${wasmPath}, ${delegate}):`, e);
+          }
+        }
+        if (this.landmarker) break;
       }
 
-      if (this.isCleanedUp) return false;
-
-      // 2. Load hand landmarker model
-      const modelPath = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
-
-      try {
-        // Try GPU first
-        this.landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: modelPath,
-            delegate: 'GPU',
-          },
-          runningMode: 'VIDEO',
-          numHands: 1,
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
-      } catch (gpuError) {
-        console.warn('[HandTracker] GPU delegate failed, falling back to CPU:', gpuError);
-        // Fallback to CPU
-        this.landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: modelPath,
-            delegate: 'CPU',
-          },
-          runningMode: 'VIDEO',
-          numHands: 1,
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
+      if (!this.landmarker) {
+        throw lastError instanceof Error ? lastError : new Error('Hand landmarker failed to load');
       }
 
       if (this.isCleanedUp) {

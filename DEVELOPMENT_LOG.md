@@ -4,7 +4,9 @@
 - **Project**: Air Ninja — Slice Without Touching
 - **Architecture**: React 19 + TypeScript + Vite 6 + HTML5 Canvas 2D + MediaPipe Tasks Vision + Web Speech API + Web Audio API
 - **Date**: 2026-10-19
-- **Repository Working Directory**: `c:\Users\CITYcomp\Desktop\fruit ninja`
+- **Repository**: `https://github.com/seeman-shingeri/air-ninja`
+- **Default Branch**: `main`
+- **Working Directory**: `c:\Users\CITYcomp\Desktop\fruit ninja`
 
 ---
 
@@ -12,15 +14,15 @@
 
 | Commit Hash | Type | Description | Test Result | Build Status | Remote Push Status |
 |---|---|---|---|---|---|
-| `905ec15` | `feat` | Initialize project scaffolding, configuration, and core types | Passed | Clean | Local repository (no remote configured) |
-| `7e9fbf5` | `feat` | Implement fruit physics, trajectory spawning, and particle effects | Passed | Clean | Local repository (no remote configured) |
-| `8d9adbf` | `feat` | Implement segment-based collision detection and procedural sound engine | Passed | Clean | Local repository (no remote configured) |
-| `7adba2b` | `feat` | Implement webcam hand tracking, OneEuroFilter, and coordinate mapping | Passed | Clean | Local repository (no remote configured) |
-| `bd17f05` | `feat` | Add voice-controlled powers and persistent local leaderboard storage | Passed | Clean | Local repository (no remote configured) |
-| `e5fb8b7` | `feat` | Implement core GameEngine, procedural 2D canvas renderer, and state machine | Passed | Clean | Local repository (no remote configured) |
-| `4fd8532` | `feat` | Implement arcade HUD, power bar, calibration overlay, and interactive modals | Passed | Clean | Local repository (no remote configured) |
-| `8425ade` | `test` | Add comprehensive game engine, physics, collision, and lifecycle regression tests | 31/31 Passed | Clean | Local repository (no remote configured) |
-| `9819c73` | `docs` | Add comprehensive README documentation and development log | Passed | Clean | Local repository (no remote configured) |
+| `905ec15` | `feat` | Initialize project scaffolding, configuration, and core types | Passed | Clean | Pushed to origin/main (Verified) |
+| `7e9fbf5` | `feat` | Implement fruit physics, trajectory spawning, and particle effects | Passed | Clean | Pushed to origin/main (Verified) |
+| `8d9adbf` | `feat` | Implement segment-based collision detection and procedural sound engine | Passed | Clean | Pushed to origin/main (Verified) |
+| `7adba2b` | `feat` | Implement webcam hand tracking, OneEuroFilter, and coordinate mapping | Passed | Clean | Pushed to origin/main (Verified) |
+| `bd17f05` | `feat` | Add voice-controlled powers and persistent local leaderboard storage | Passed | Clean | Pushed to origin/main (Verified) |
+| `e5fb8b7` | `feat` | Implement core GameEngine, procedural 2D canvas renderer, and state machine | Passed | Clean | Pushed to origin/main (Verified) |
+| `4fd8532` | `feat` | Implement arcade HUD, power bar, calibration overlay, and interactive modals | Passed | Clean | Pushed to origin/main (Verified) |
+| `8425ade` | `test` | Add comprehensive game engine, physics, collision, and lifecycle regression tests | 31/31 Passed | Clean | Pushed to origin/main (Verified) |
+| `9819c73` | `docs` | Add comprehensive README documentation and development log | Passed | Clean | Pushed to origin/main (Verified) |
 
 ---
 

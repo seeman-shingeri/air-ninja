@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameEngine } from '../engine/GameEngine';
 import { CameraManager, CameraStatus } from '../tracking/CameraManager';
 import { HandTracker, TrackerStatus } from '../tracking/HandTracker';
-import { VoiceManager } from '../voice/VoiceManager';
+import { VoiceManager, VoiceStatus } from '../voice/VoiceManager';
 import { SettingsStorage } from '../storage/SettingsStorage';
 import { LeaderboardStorage } from '../storage/LeaderboardStorage';
 import { ActivePowerState, GameMode, GameStats, GameStatus, Point2D, SpecialPower, UserSettings } from '../types';
@@ -59,10 +59,13 @@ export const AirNinjaGame: React.FC = () => {
   const [trackerStatus, setTrackerStatus] = useState<TrackerStatus>('idle');
   const [isHandDetected, setIsHandDetected] = useState<boolean>(false);
   const [currentFingertip, setCurrentFingertip] = useState<Point2D | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState<'listening' | 'idle' | 'error' | 'unsupported'>('idle');
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceError, setVoiceError] = useState('');
+  const [voiceFeedback, setVoiceFeedback] = useState<{ message: string; success: boolean } | null>(null);
   const transcriptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTranscriptUpdateRef = useRef<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   // Modals
@@ -244,19 +247,26 @@ export const AirNinjaGame: React.FC = () => {
         if (status === 'listening') setVoiceError('');
         if (message) {
           setVoiceError(message);
-          console.warn('[Voice]', message);
         }
       },
       onInterimText: (text) => {
-        setVoiceTranscript(text.trim());
-        if (transcriptTimerRef.current) clearTimeout(transcriptTimerRef.current);
-        transcriptTimerRef.current = setTimeout(() => setVoiceTranscript(''), 2500);
+        const now = performance.now();
+        // Throttle React state updates to ~5Hz (every 200ms) to avoid starving 60fps game render loop
+        if (now - lastTranscriptUpdateRef.current > 200) {
+          lastTranscriptUpdateRef.current = now;
+          setVoiceTranscript(text.trim());
+          if (transcriptTimerRef.current) clearTimeout(transcriptTimerRef.current);
+          transcriptTimerRef.current = setTimeout(() => setVoiceTranscript(''), 2500);
+        }
       },
-      onPowerTriggered: (power) => {
-        engineRef.current?.triggerPower(power);
-      },
-      onFruitCalled: (fruit) => {
-        engineRef.current?.sliceFruitByVoice(fruit);
+      onAction: (action) => {
+        if (!engineRef.current) return { success: false, message: 'Game not active', action };
+        const result = engineRef.current.dispatchVoiceAction(action);
+        // Show discreet feedback message in HUD
+        setVoiceFeedback({ message: result.message, success: result.success });
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = setTimeout(() => setVoiceFeedback(null), 2200);
+        return result;
       },
     });
 
@@ -272,7 +282,9 @@ export const AirNinjaGame: React.FC = () => {
     setVoiceStatus('idle');
     setVoiceTranscript('');
     setVoiceError('');
+    setVoiceFeedback(null);
     if (transcriptTimerRef.current) clearTimeout(transcriptTimerRef.current);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
   }, []);
 
   // Cleanup on unmount or tab switch
@@ -335,8 +347,12 @@ export const AirNinjaGame: React.FC = () => {
   const handleTogglePause = () => {
     if (gameStatus === 'playing') {
       engineRef.current?.pause();
+      voiceManagerRef.current?.pause();
     } else if (gameStatus === 'paused') {
       engineRef.current?.resume();
+      if (userSettings.voiceEnabled) {
+        voiceManagerRef.current?.resume();
+      }
     }
   };
 
@@ -479,6 +495,7 @@ export const AirNinjaGame: React.FC = () => {
             onToggleMute={handleToggleMute}
             voiceStatus={voiceStatus}
             voiceTranscript={voiceTranscript}
+            voiceFeedback={voiceFeedback}
             voiceError={voiceError}
             isCameraActive={userSettings.cameraEnabled && cameraStatus === 'ready'}
             isHandDetected={isHandDetected}

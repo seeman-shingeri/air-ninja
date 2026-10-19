@@ -18,6 +18,7 @@ import { FruitManager } from './FruitManager';
 import { GameRenderer } from './GameRenderer';
 import { ParticleSystem } from './ParticleSystem';
 import { SoundManager } from '../audio/SoundManager';
+import { VoiceAction, VoiceActionResult } from '../voice/VoiceManager';
 
 export interface GameEngineCallbacks {
   onStatsChange?: (stats: GameStats) => void;
@@ -125,11 +126,15 @@ export class GameEngine {
 
   public handleResize(): void {
     const rect = this.canvas.getBoundingClientRect();
-    const width = Math.floor(rect.width) || window.innerWidth;
-    const height = Math.floor(rect.height) || window.innerHeight;
+    const fallbackW = typeof window !== 'undefined' ? window.innerWidth : 800;
+    const fallbackH = typeof window !== 'undefined' ? window.innerHeight : 600;
+    const fallbackDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+    const width = Math.floor(rect.width) || fallbackW;
+    const height = Math.floor(rect.height) || fallbackH;
 
     const dprCap = GAME_CONSTANTS.DPR_CAP[this.userSettings.performanceMode] || 1.5;
-    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+    const dpr = Math.min(fallbackDpr, dprCap);
 
     this.canvas.width = Math.floor(width * dpr);
     this.canvas.height = Math.floor(height * dpr);
@@ -142,12 +147,18 @@ export class GameEngine {
 
   public getWidth(): number {
     const rect = this.canvas.getBoundingClientRect();
-    return Math.floor(rect.width) || window.innerWidth;
+    const fallbackW = typeof window !== 'undefined' ? window.innerWidth : 800;
+    return Math.floor(rect.width) || fallbackW;
   }
 
   public getHeight(): number {
     const rect = this.canvas.getBoundingClientRect();
-    return Math.floor(rect.height) || window.innerHeight;
+    const fallbackH = typeof window !== 'undefined' ? window.innerHeight : 600;
+    return Math.floor(rect.height) || fallbackH;
+  }
+
+  public getStats(): GameStats {
+    return { ...this.stats };
   }
 
   public setGameMode(mode: GameMode): void {
@@ -278,24 +289,108 @@ export class GameEngine {
   }
 
   /**
-   * Slices an on-screen fruit of the spoken type. Targets the oldest one, since it is closest to being missed.
+   * Dispatches a voice action directly to the game engine
    */
-  public sliceFruitByVoice(type: FruitType): boolean {
+  public dispatchVoiceAction(action: VoiceAction): VoiceActionResult {
+    if (this.status !== 'playing') {
+      const msg = this.status === 'paused' ? 'Game is paused' : 'Game not active';
+      return { success: false, message: msg, action };
+    }
+
+    switch (action.type) {
+      case 'SLOW_MOTION': {
+        const ok = this.triggerPower('slow_motion');
+        return {
+          success: ok,
+          message: ok ? 'SLOW MOTION ACTIVATED!' : 'Slow motion on cooldown',
+          action,
+        };
+      }
+      case 'DOUBLE_SCORE': {
+        const ok = this.triggerPower('double_score');
+        return {
+          success: ok,
+          message: ok ? 'DOUBLE SCORE ACTIVATED!' : 'Double score on cooldown',
+          action,
+        };
+      }
+      case 'BOMB_MODE': {
+        const ok = this.triggerPower('bomb_mode');
+        return {
+          success: ok,
+          message: ok ? 'BOMB MODE ACTIVATED!' : 'Bomb mode on cooldown',
+          action,
+        };
+      }
+      case 'SLICE_FRUIT': {
+        if (!action.fruitType) {
+          return { success: false, message: 'Invalid fruit command', action };
+        }
+        const spoken = action.spokenName || FRUIT_DEFINITIONS[action.fruitType]?.name || action.fruitType;
+        const sliced = this.sliceFruitByVoice(action.fruitType, spoken);
+        if (sliced) {
+          return {
+            success: true,
+            message: `${spoken.toUpperCase()} SLICED BY VOICE`,
+            action,
+          };
+        } else {
+          return {
+            success: false,
+            message: `No ${spoken.toLowerCase()} available.`,
+            action,
+          };
+        }
+      }
+      default:
+        return { success: false, message: 'Unknown action', action };
+    }
+  }
+
+  /**
+   * Slices an on-screen fruit of the spoken type.
+   * Deterministically selects the most visible / nearest-to-center eligible fruit.
+   * Never slices bombs, off-screen fruits, or already-sliced fruits.
+   */
+  public sliceFruitByVoice(type: FruitType, spokenName?: string): boolean {
     if (this.status !== 'playing') return false;
 
+    const width = this.getWidth();
     const height = this.getHeight();
+    const centerX = width / 2;
+    const centerY = height / 2;
+
     let target: Fruit | null = null;
+    let minDistanceSq = Infinity;
+
     for (const fruit of this.fruitManager.fruits) {
       if (fruit.isSliced || fruit.type !== type) continue;
-      // Ignore fruits that have not risen into view yet
-      if (fruit.y - fruit.radius > height) continue;
-      if (!target || fruit.createdAt < target.createdAt) target = fruit;
+
+      // Must be on-screen / in view
+      const isVisible =
+        fruit.y - fruit.radius <= height &&
+        fruit.y + fruit.radius >= 0 &&
+        fruit.x - fruit.radius <= width &&
+        fruit.x + fruit.radius >= 0;
+
+      if (!isVisible) continue;
+
+      // Deterministic rule: select nearest to screen center
+      const dx = fruit.x - centerX;
+      const dy = fruit.y - centerY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq < minDistanceSq) {
+        minDistanceSq = distSq;
+        target = fruit;
+      }
     }
 
     if (!target) return false;
 
     const sliceAngle = (Math.random() - 0.5) * Math.PI;
-    this.addPopup(`${FRUIT_DEFINITIONS[type].name}!`, target.x, target.y - target.radius - 24, '#00e5ff', 1.1);
+    const displayName = (spokenName || FRUIT_DEFINITIONS[type].name).toUpperCase();
+    this.addPopup(`${displayName} VOICED!`, target.x, target.y - target.radius - 24, '#00e5ff', 1.15);
     this.handleFruitSliced(target, sliceAngle, { x: target.x, y: target.y });
     return true;
   }

@@ -429,48 +429,49 @@ export class GameRenderer {
   ): void {
     if (trail.length < 2) return;
 
-    ctx.save();
     const now = performance.now();
     const pts = trail.filter((p) => (now - p.timestamp) / 1000 <= maxAge);
-    if (pts.length < 2) {
-      ctx.restore();
-      return;
-    }
+    if (pts.length < 2) return;
 
-    for (let i = 1; i < pts.length; i++) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const last = pts.length - 1;
+
+    // Camera samples arrive at ~30-60 Hz, so straight segments look jagged on fast arcs.
+    // Each piece runs between segment midpoints as a quadratic curve through the sample
+    // (the first and last pieces reach the real endpoints), giving one continuous smooth
+    // stroke. The glow is a wide translucent stroke, since shadowBlur per segment is costly.
+    for (let i = 1; i <= last; i++) {
       const p1 = pts[i - 1];
       const p2 = pts[i];
+
       const age = (now - p2.timestamp) / 1000;
       const progress = Math.max(0, Math.min(1, 1 - age / maxAge));
       const width = Math.max(2, progress * 16);
 
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      if (i < pts.length - 1) {
-        const p3 = pts[i + 1];
-        const midX = (p2.x + p3.x) / 2;
-        const midY = (p2.y + p3.y) / 2;
-        ctx.quadraticCurveTo(p2.x, p2.y, midX, midY);
-      } else {
-        ctx.lineTo(p2.x, p2.y);
-      }
+      const startX = i === 1 ? p1.x : (pts[i - 2].x + p1.x) / 2;
+      const startY = i === 1 ? p1.y : (pts[i - 2].y + p1.y) / 2;
+      const endX = i === last ? p2.x : (p1.x + p2.x) / 2;
+      const endY = i === last ? p2.y : (p1.y + p2.y) / 2;
 
-      // Outer neon cyan/violet glow
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(p1.x, p1.y, endX, endY);
+
+      // Soft outer neon glow
+      ctx.strokeStyle = `rgba(0, 229, 255, ${progress * 0.25})`;
+      ctx.lineWidth = width * 2.2;
+      ctx.stroke();
+
+      // Neon cyan body
       ctx.strokeStyle = `rgba(0, 229, 255, ${progress * 0.9})`;
       ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = '#00e5ff';
-      ctx.shadowBlur = 12 * progress;
       ctx.stroke();
 
       // Sharp luminous white core
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
       ctx.strokeStyle = `rgba(255, 255, 255, ${progress * 0.95})`;
       ctx.lineWidth = Math.max(1, width * 0.35);
-      ctx.shadowBlur = 4;
       ctx.stroke();
     }
 

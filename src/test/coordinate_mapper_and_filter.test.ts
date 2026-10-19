@@ -77,4 +77,50 @@ describe('CoordinateMapper and OneEuroFilter', () => {
     expect(p2.x).toBeGreaterThan(250);
     expect(p2.y).toBeGreaterThan(250);
   });
+
+  it('keeps a resting fingertip steady with the 2D smoother', () => {
+    const smoother = new Point2DSmoother();
+    let t = 1000;
+    let out = { x: 0, y: 0 };
+    for (let i = 0; i < 30; i++) {
+      const n = i % 2 === 0 ? 3 : -3;
+      out = smoother.filter(400 + n, 300 - n, t);
+      t += 33;
+    }
+    expect(Math.abs(out.x - 400)).toBeLessThan(1.5);
+    expect(Math.abs(out.y - 300)).toBeLessThan(1.5);
+  });
+
+  it('preserves the direction of diagonal swipes', () => {
+    const smoother = new Point2DSmoother();
+    let t = 1000;
+    smoother.filter(100, 100, t);
+    let out = { x: 100, y: 100 };
+    // Uneven diagonal: x moves 3x faster than y
+    for (let i = 1; i <= 6; i++) {
+      t += 33;
+      out = smoother.filter(100 + i * 60, 100 + i * 20, t);
+    }
+    const angle = Math.atan2(out.y - 100, out.x - 100);
+    expect(angle).toBeCloseTo(Math.atan2(20, 60), 2);
+  });
+
+  it('catches up to a fast swipe within a few camera frames', () => {
+    const smoother = new Point2DSmoother();
+    let t = 1000;
+    // Rest, then a 1500 px/s swipe sampled at 30 fps
+    for (let i = 0; i < 10; i++) {
+      smoother.filter(200, 200, t);
+      t += 33;
+    }
+    let x = 200;
+    let out = { x: 200, y: 200 };
+    for (let i = 0; i < 3; i++) {
+      x += 50;
+      out = smoother.filter(x, 200, t);
+      t += 33;
+    }
+    // Within 3 frames the blade trails the real fingertip by less than one frame of motion
+    expect(x - out.x).toBeLessThan(50);
+  });
 });

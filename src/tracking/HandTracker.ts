@@ -40,17 +40,26 @@ export class HandTracker {
   private trackingLostTimeout = 320; // ms grace period before declaring hand lost
   private isCleanedUp = false;
 
-  // Inference throttling: minimum 20ms between inferences (up to 50 inferences/sec)
-  private minInferenceInterval = 20;
+  // Guards against detecting twice for one frame. Detection is already paced once per
+  // camera frame by the caller, so this stays below a 60 fps frame interval (16.7ms)
+  private minInferenceInterval = 8;
   private lastInferenceTime = 0;
 
   constructor(options: HandTrackerOptions, callbacks: HandTrackerCallbacks = {}) {
     this.options = { mirrored: true, sensitivity: 'medium', ...options };
     this.callbacks = callbacks;
 
-    // Responsive beta values for One Euro Filter: higher beta = zero lag during fast movement
-    const beta = options.sensitivity === 'high' ? 0.035 : options.sensitivity === 'low' ? 0.012 : 0.022;
-    this.smoother = new Point2DSmoother(1.0, beta);
+    this.smoother = HandTracker.createSmoother(this.options.sensitivity);
+  }
+
+  /**
+   * Filter tuning per sensitivity. minCutoff sets how steady a resting finger is; beta sets
+   * how quickly smoothing drops away as the finger speeds up (in pixels/second).
+   */
+  private static createSmoother(sensitivity: HandTrackerOptions['sensitivity'] = 'medium'): Point2DSmoother {
+    if (sensitivity === 'high') return new Point2DSmoother(2.0, 0.04);
+    if (sensitivity === 'low') return new Point2DSmoother(1.0, 0.01);
+    return new Point2DSmoother(1.5, 0.02);
   }
 
   public setDimensions(width: number, height: number): void {
@@ -64,8 +73,7 @@ export class HandTracker {
 
   public setSensitivity(sensitivity: 'low' | 'medium' | 'high'): void {
     this.options.sensitivity = sensitivity;
-    const beta = sensitivity === 'high' ? 0.035 : sensitivity === 'low' ? 0.012 : 0.022;
-    this.smoother = new Point2DSmoother(1.0, beta);
+    this.smoother = HandTracker.createSmoother(sensitivity);
   }
 
   public getStatus(): TrackerStatus {

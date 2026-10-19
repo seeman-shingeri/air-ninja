@@ -10,6 +10,8 @@ interface HUDProps {
   isMuted: boolean;
   onToggleMute: () => void;
   voiceStatus: 'listening' | 'idle' | 'error' | 'unsupported';
+  voiceTranscript?: string;
+  voiceError?: string;
   isCameraActive: boolean;
   isHandDetected: boolean;
   onExitToMenu: () => void;
@@ -23,12 +25,32 @@ export const HUD: React.FC<HUDProps> = ({
   isMuted,
   onToggleMute,
   voiceStatus,
+  voiceTranscript,
+  voiceError,
   isCameraActive,
   isHandDetected,
   onExitToMenu,
 }) => {
   return (
     <div className="absolute top-0 left-0 right-0 p-4 pointer-events-none flex justify-between items-start select-none z-20">
+      {/* What the microphone heard, so players can see whether commands are recognized */}
+      {(voiceTranscript || voiceError) && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 max-w-[90vw] px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-xs flex items-center gap-2">
+          {voiceError ? (
+            <>
+              <MicOff size={14} className="text-red-300 shrink-0" />
+              <span className="text-red-200 truncate">{voiceError}</span>
+            </>
+          ) : (
+            <>
+              <Mic size={14} className="text-emerald-300 shrink-0" />
+              <span className="text-gray-400">Heard:</span>
+              <span className="text-white font-semibold truncate">&quot;{voiceTranscript}&quot;</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Left: Score & Combo */}
       <div className="flex flex-col gap-1 pointer-events-auto">
         <div className="flex items-baseline gap-2">

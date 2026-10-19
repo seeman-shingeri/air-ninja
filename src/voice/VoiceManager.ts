@@ -1,7 +1,8 @@
-import { SpecialPower } from '../types';
+import { FruitType, SpecialPower } from '../types';
 
 export interface VoiceManagerCallbacks {
   onPowerTriggered?: (power: SpecialPower, recognizedText: string) => void;
+  onFruitCalled?: (fruit: FruitType, recognizedText: string) => void;
   onStatusChange?: (status: 'listening' | 'idle' | 'error' | 'unsupported', message?: string) => void;
   onInterimText?: (text: string) => void;
 }
@@ -39,6 +40,27 @@ interface SpeechRecognitionInstance {
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
 }
 
+// Spoken words that map to each fruit (plurals and common mis-splits from speech engines)
+export const FRUIT_VOICE_ALIASES: Record<FruitType, string[]> = {
+  watermelon: ['watermelon', 'watermelons', 'water melon', 'water melons', 'melon', 'melons'],
+  orange: ['orange', 'oranges'],
+  apple: ['apple', 'apples'],
+  banana: ['banana', 'bananas'],
+  strawberry: ['strawberry', 'strawberries', 'straw berry', 'straw berries'],
+  pineapple: ['pineapple', 'pineapples', 'pine apple', 'pine apples'],
+};
+
+const FRUIT_ALIAS_LOOKUP = new Map<string, FruitType>();
+(Object.keys(FRUIT_VOICE_ALIASES) as FruitType[]).forEach((fruit) => {
+  FRUIT_VOICE_ALIASES[fruit].forEach((alias) => FRUIT_ALIAS_LOOKUP.set(alias, fruit));
+});
+
+// Longest aliases first so "pine apple" wins over "apple" and "water melon" over "melon"
+const FRUIT_ALIAS_REGEX = new RegExp(
+  `\\b(${[...FRUIT_ALIAS_LOOKUP.keys()].sort((a, b) => b.length - a.length).join('|')})\\b`,
+  'g'
+);
+
 export class VoiceManager {
   private recognition: SpeechRecognitionInstance | null = null;
   private isListening = false;
@@ -50,6 +72,11 @@ export class VoiceManager {
     bomb_mode: 0,
   };
   private cooldownMs = 15000; // 15s cooldown per power
+
+  // Interim results repeat the same phrase as it grows, so track how many fruit
+  // words of the current result were already acted on to avoid double cuts
+  private fruitResultIndex = -1;
+  private fruitMatchesHandled = 0;
 
   constructor(callbacks: VoiceManagerCallbacks = {}) {
     this.callbacks = callbacks;
@@ -113,6 +140,37 @@ export class VoiceManager {
     return null;
   }
 
+  /**
+   * Extracts every fruit name in a transcript, in spoken order ("apple and two bananas" -> apple, banana)
+   */
+  public static matchFruits(text: string): FruitType[] {
+    const norm = this.normalizeTranscript(text);
+    const matches: FruitType[] = [];
+    for (const m of norm.matchAll(FRUIT_ALIAS_REGEX)) {
+      const fruit = FRUIT_ALIAS_LOOKUP.get(m[1]);
+      if (fruit) matches.push(fruit);
+    }
+    return matches;
+  }
+
+  /**
+   * Emits fruit calls from a (possibly interim) recognition result, only for words not yet handled
+   */
+  public handleFruitTranscript(resultIndex: number, transcript: string): void {
+    if (resultIndex !== this.fruitResultIndex) {
+      this.fruitResultIndex = resultIndex;
+      this.fruitMatchesHandled = 0;
+    }
+
+    const matches = VoiceManager.matchFruits(transcript);
+    for (let i = this.fruitMatchesHandled; i < matches.length; i++) {
+      if (this.callbacks.onFruitCalled) {
+        this.callbacks.onFruitCalled(matches[i], transcript);
+      }
+    }
+    this.fruitMatchesHandled = Math.max(this.fruitMatchesHandled, matches.length);
+  }
+
   public start(): boolean {
     if (!VoiceManager.isSupported()) {
       if (this.callbacks.onStatusChange) {
@@ -136,6 +194,8 @@ export class VoiceManager {
       }
 
       this.recognition = new SpeechRecognitionConstructor();
+      this.fruitResultIndex = -1;
+      this.fruitMatchesHandled = 0;
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
@@ -155,6 +215,8 @@ export class VoiceManager {
           if (this.callbacks.onInterimText) {
             this.callbacks.onInterimText(transcript);
           }
+
+          this.handleFruitTranscript(i, transcript);
 
           const matchedPower = VoiceManager.matchCommand(transcript);
           if (matchedPower) {

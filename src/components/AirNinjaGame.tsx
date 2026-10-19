@@ -59,6 +59,9 @@ export const AirNinjaGame: React.FC = () => {
   const [isHandDetected, setIsHandDetected] = useState<boolean>(false);
   const [currentFingertip, setCurrentFingertip] = useState<Point2D | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<'listening' | 'idle' | 'error' | 'unsupported'>('idle');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState('');
+  const transcriptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
   // Modals
@@ -125,13 +128,10 @@ export const AirNinjaGame: React.FC = () => {
       const tracker = handTrackerRef.current;
       const engine = engineRef.current;
 
+      // Detected points are forwarded to the engine via the tracker's onFingertipMove callback
       if (video && tracker && engine && video.readyState >= 2) {
         const point = tracker.processVideoFrame(video, performance.now());
-        if (point) {
-          engine.updateFingertip(point, true);
-          setCurrentFingertip(point);
-          setIsHandDetected(true);
-        } else {
+        if (!point) {
           setIsHandDetected(false);
         }
       }
@@ -221,12 +221,27 @@ export const AirNinjaGame: React.FC = () => {
 
   // Start Voice Recognition
   const initVoice = useCallback(() => {
-    if (!userSettings.voiceEnabled) return;
+    if (!userSettings.voiceEnabled || voiceManagerRef.current) return;
 
     const voice = new VoiceManager({
-      onStatusChange: (status) => setVoiceStatus(status),
+      onStatusChange: (status, message) => {
+        setVoiceStatus(status);
+        if (status === 'listening') setVoiceError('');
+        if (message) {
+          setVoiceError(message);
+          console.warn('[Voice]', message);
+        }
+      },
+      onInterimText: (text) => {
+        setVoiceTranscript(text.trim());
+        if (transcriptTimerRef.current) clearTimeout(transcriptTimerRef.current);
+        transcriptTimerRef.current = setTimeout(() => setVoiceTranscript(''), 2500);
+      },
       onPowerTriggered: (power) => {
         engineRef.current?.triggerPower(power);
+      },
+      onFruitCalled: (fruit) => {
+        engineRef.current?.sliceFruitByVoice(fruit);
       },
     });
 
@@ -240,6 +255,9 @@ export const AirNinjaGame: React.FC = () => {
       voiceManagerRef.current = null;
     }
     setVoiceStatus('idle');
+    setVoiceTranscript('');
+    setVoiceError('');
+    if (transcriptTimerRef.current) clearTimeout(transcriptTimerRef.current);
   }, []);
 
   // Cleanup on unmount or tab switch
@@ -266,18 +284,20 @@ export const AirNinjaGame: React.FC = () => {
     setGameMode(mode);
     engineRef.current?.soundManager.unlock();
 
+    // Start the microphone right away so voice works regardless of camera calibration
+    initVoice();
+
     if (userSettings.cameraEnabled) {
       setGameStatus('calibrating');
       initCameraAndTracker();
     } else {
       // Direct start with mouse blade
-      if (userSettings.voiceEnabled) initVoice();
       engineRef.current?.startRound(mode);
     }
   };
 
   const handleCalibrationComplete = () => {
-    if (userSettings.voiceEnabled) initVoice();
+    initVoice();
     engineRef.current?.startRound(gameMode);
   };
 
@@ -287,7 +307,7 @@ export const AirNinjaGame: React.FC = () => {
     setUserSettings(updated);
     SettingsStorage.saveSettings(updated);
 
-    if (userSettings.voiceEnabled) initVoice();
+    initVoice();
     engineRef.current?.startRound(gameMode);
   };
 
@@ -389,13 +409,13 @@ export const AirNinjaGame: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black select-none font-sans">
-      {/* Hidden/Active Webcam Video Element */}
+      {/* Webcam source for hand tracking. Kept rendered (not display:none) so the browser keeps decoding frames */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        className="hidden pointer-events-none"
+        className="absolute top-0 left-0 w-px h-px opacity-0 pointer-events-none"
       />
 
       {/* Main 2D Canvas Arena */}
@@ -419,6 +439,8 @@ export const AirNinjaGame: React.FC = () => {
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             voiceStatus={voiceStatus}
+            voiceTranscript={voiceTranscript}
+            voiceError={voiceError}
             isCameraActive={userSettings.cameraEnabled && cameraStatus === 'ready'}
             isHandDetected={isHandDetected}
             onExitToMenu={handleExitToMenu}
@@ -454,13 +476,17 @@ export const AirNinjaGame: React.FC = () => {
       {gameStatus === 'calibrating' && (
         <CalibrationOverlay
           cameraStatus={cameraStatus}
+          trackerStatus={trackerStatus}
           errorMessage={cameraError}
           videoRef={videoRef}
           currentFingertip={currentFingertip}
           isHandDetected={isHandDetected}
           onCalibrationComplete={handleCalibrationComplete}
           onSwitchToMouse={handleSwitchToMouse}
-          onRetryCamera={initCameraAndTracker}
+          onRetryCamera={() => {
+            releaseCamera();
+            initCameraAndTracker();
+          }}
           isMirrored={userSettings.mirrorCamera}
         />
       )}

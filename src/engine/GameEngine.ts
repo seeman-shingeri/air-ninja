@@ -1,8 +1,9 @@
-import { GAME_CONSTANTS, POWER_CONFIGS } from '../config/gameConfig';
+import { FRUIT_DEFINITIONS, GAME_CONSTANTS, POWER_CONFIGS } from '../config/gameConfig';
 import {
   ActivePowerState,
   Bomb,
   Fruit,
+  FruitType,
   GameMode,
   GameStats,
   GameStatus,
@@ -273,6 +274,29 @@ export class GameEngine {
     this.addPopup(POWER_CONFIGS[power].label + '!', this.getWidth() / 2, this.getHeight() * 0.35, POWER_CONFIGS[power].color, 1.6);
 
     this.notifyPowers();
+    return true;
+  }
+
+  /**
+   * Slices an on-screen fruit of the spoken type. Targets the oldest one, since it is closest to being missed.
+   */
+  public sliceFruitByVoice(type: FruitType): boolean {
+    if (this.status !== 'playing') return false;
+
+    const height = this.getHeight();
+    let target: Fruit | null = null;
+    for (const fruit of this.fruitManager.fruits) {
+      if (fruit.isSliced || fruit.type !== type) continue;
+      // Ignore fruits that have not risen into view yet
+      if (fruit.y - fruit.radius > height) continue;
+      if (!target || fruit.createdAt < target.createdAt) target = fruit;
+    }
+
+    if (!target) return false;
+
+    const sliceAngle = (Math.random() - 0.5) * Math.PI;
+    this.addPopup(`${FRUIT_DEFINITIONS[type].name}!`, target.x, target.y - target.radius - 24, '#00e5ff', 1.1);
+    this.handleFruitSliced(target, sliceAngle, { x: target.x, y: target.y });
     return true;
   }
 

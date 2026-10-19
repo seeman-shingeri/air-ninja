@@ -73,6 +73,10 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
               <p className="text-[11px] text-gray-400 mt-2">
                 Manual buttons (hotkeys 1, 2, 3) are also on screen.
               </p>
+              <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                <strong className="text-cyan-300">Voice Slice:</strong> shout a fruit&apos;s name, like
+                &quot;Watermelon!&quot; or &quot;Banana!&quot;, to instantly cut that fruit on screen.
+              </p>
             </div>
           </div>
 

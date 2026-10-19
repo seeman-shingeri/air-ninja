@@ -26,6 +26,7 @@ Speak directly into your microphone to unleash special powers:
 - **"Slow motion!"** (or *"slow mo"*): Dilation field reducing physics velocity to 0.35x for 5 seconds.
 - **"Double score!"** (or *"double points"*): Radiant golden score multiplier doubling all fruit points for 8 seconds.
 - **"Bomb mode!"** (or *"more bombs"*): High-adrenaline surge of bomb spawns for high-risk frenzy scoring for 6 seconds.
+- **Voice Slice**: Say a fruit's name (*"Watermelon!"*, *"Banana!"*, *"Pineapple!"*) to instantly cut that fruit on screen. Several names in one breath cut several fruits and can chain combos.
 - **Manual Hotkeys & UI Buttons**: Every power features an accessible on-screen button with cooldown progress and keyboard shortcuts (`1`, `2`, `3`).
 
 ### 4. Zero-Latency Procedural Audio (Web Audio API)

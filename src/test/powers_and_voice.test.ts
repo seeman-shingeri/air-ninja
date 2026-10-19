@@ -54,4 +54,39 @@ describe('VoiceManager and Power Rules', () => {
     expect(POWER_CONFIGS.bomb_mode.duration).toBeGreaterThan(0);
     expect(POWER_CONFIGS.bomb_mode.cooldown).toBeGreaterThanOrEqual(POWER_CONFIGS.bomb_mode.duration);
   });
+
+  it('matches spoken fruit names, plurals and split words', () => {
+    expect(VoiceManager.matchFruits('Watermelon!')).toEqual(['watermelon']);
+    expect(VoiceManager.matchFruits('bananas')).toEqual(['banana']);
+    expect(VoiceManager.matchFruits('water melon')).toEqual(['watermelon']);
+    expect(VoiceManager.matchFruits('strawberries')).toEqual(['strawberry']);
+  });
+
+  it('prefers longer fruit names over contained ones', () => {
+    expect(VoiceManager.matchFruits('pineapple')).toEqual(['pineapple']);
+    expect(VoiceManager.matchFruits('pine apple')).toEqual(['pineapple']);
+    expect(VoiceManager.matchFruits('melon')).toEqual(['watermelon']);
+  });
+
+  it('returns every fruit in spoken order and ignores non-fruit words', () => {
+    expect(VoiceManager.matchFruits('apple orange apple')).toEqual(['apple', 'orange', 'apple']);
+    expect(VoiceManager.matchFruits('slow motion')).toEqual([]);
+    expect(VoiceManager.matchFruits('snapple grapes')).toEqual([]);
+  });
+
+  it('cuts each spoken fruit once even as interim results repeat', () => {
+    const onFruitCalled = vi.fn();
+    const voice = new VoiceManager({ onFruitCalled });
+
+    // Interim results grow for the same result index
+    voice.handleFruitTranscript(0, 'apple');
+    voice.handleFruitTranscript(0, 'apple ban');
+    voice.handleFruitTranscript(0, 'apple banana');
+    voice.handleFruitTranscript(0, 'apple banana');
+    expect(onFruitCalled.mock.calls.map((c) => c[0])).toEqual(['apple', 'banana']);
+
+    // A new result index starts fresh
+    voice.handleFruitTranscript(1, 'apple');
+    expect(onFruitCalled.mock.calls.map((c) => c[0])).toEqual(['apple', 'banana', 'apple']);
+  });
 });

@@ -10,9 +10,9 @@ interface PowerBarProps {
 
 export const PowerBar: React.FC<PowerBarProps> = ({ powers, onTriggerPower }) => {
   const powerIcons: Record<SpecialPower, React.ReactNode> = {
-    slow_motion: <Clock size={20} className="text-cyan-400" />,
-    double_score: <Zap size={20} className="text-amber-400" />,
-    bomb_mode: <BombIcon size={20} className="text-red-400" />,
+    slow_motion: <Clock size={18} className="text-cyan-400 sm:w-5 sm:h-5" />,
+    double_score: <Zap size={18} className="text-amber-400 sm:w-5 sm:h-5" />,
+    bomb_mode: <BombIcon size={18} className="text-red-400 sm:w-5 sm:h-5" />,
   };
 
   const hotkeys: Record<SpecialPower, string> = {
@@ -22,7 +22,7 @@ export const PowerBar: React.FC<PowerBarProps> = ({ powers, onTriggerPower }) =>
   };
 
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 select-none pointer-events-auto">
+    <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center gap-1.5 sm:gap-3 max-w-[98vw] px-1 select-none pointer-events-auto">
       {(Object.keys(powers) as SpecialPower[]).map((powerKey) => {
         const state = powers[powerKey];
         const config = POWER_CONFIGS[powerKey];
@@ -34,15 +34,15 @@ export const PowerBar: React.FC<PowerBarProps> = ({ powers, onTriggerPower }) =>
             key={powerKey}
             disabled={isCooldown}
             onClick={() => onTriggerPower(powerKey)}
-            className={`relative group px-4 py-2.5 rounded-2xl backdrop-blur-md border transition-all duration-200 flex items-center gap-3 ${
+            className={`relative group px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl backdrop-blur-md border transition-all duration-200 flex items-center gap-2 sm:gap-3 ${
               isActive
-                ? 'bg-white/20 border-white shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-105'
+                ? 'bg-white/20 border-white shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-102'
                 : isCooldown
                 ? 'bg-black/50 border-white/5 opacity-60 cursor-not-allowed'
                 : 'bg-black/60 hover:bg-black/80 border-white/15 hover:border-white/30 hover:scale-102 active:scale-95 shadow-lg'
             }`}
           >
-            {/* Active countdown or Cooldown radial ring overlay */}
+            {/* Active pulse dot */}
             <div className="relative flex items-center justify-center">
               {powerIcons[powerKey]}
               {isActive && (
@@ -54,22 +54,25 @@ export const PowerBar: React.FC<PowerBarProps> = ({ powers, onTriggerPower }) =>
             </div>
 
             <div className="flex flex-col text-left">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white tracking-wide">{config.label}</span>
-                <span className="text-[10px] font-mono px-1 rounded bg-white/10 text-gray-300">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide">{config.label}</span>
+                <span className="hidden sm:inline text-[10px] font-mono px-1 rounded bg-white/10 text-gray-300">
                   {hotkeys[powerKey]}
                 </span>
               </div>
 
-              <span className="text-[10px] text-gray-400">
+              <span className="text-[9px] sm:text-[10px] text-gray-400">
                 {isActive ? (
-                  <span className="text-cyan-300 font-semibold">
-                    ACTIVE ({state.remainingTime.toFixed(1)}s)
+                  <span className="text-cyan-300 font-bold">
+                    {state.remainingTime.toFixed(1)}s
                   </span>
                 ) : isCooldown ? (
                   <span className="text-gray-500">{state.cooldownRemaining.toFixed(0)}s wait</span>
                 ) : (
-                  <span>Say: &quot;{config.voiceCommand}&quot;</span>
+                  <>
+                    <span className="hidden sm:inline">Say: &quot;{config.voiceCommand}&quot;</span>
+                    <span className="sm:hidden text-cyan-300">Tap / Say</span>
+                  </>
                 )}
               </span>
             </div>

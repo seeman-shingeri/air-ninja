@@ -55,6 +55,7 @@ export const AirNinjaGame: React.FC = () => {
   // Hardware Status State
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>('uninitialized');
   const [cameraError, setCameraError] = useState<string>('');
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [trackerStatus, setTrackerStatus] = useState<TrackerStatus>('idle');
   const [isHandDetected, setIsHandDetected] = useState<boolean>(false);
   const [currentFingertip, setCurrentFingertip] = useState<Point2D | null>(null);
@@ -98,9 +99,11 @@ export const AirNinjaGame: React.FC = () => {
     };
 
     window.addEventListener('resize', handleWindowResize);
+    window.addEventListener('orientationchange', handleWindowResize);
 
     return () => {
       window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('orientationchange', handleWindowResize);
       engine.dispose();
       engineRef.current = null;
     };
@@ -117,7 +120,7 @@ export const AirNinjaGame: React.FC = () => {
     }
   }, [userSettings]);
 
-  // Video tracking loop
+  // Video tracking loop with velocity dead-reckoning extrapolation for 60-120fps smoothness
   const startTrackingLoop = useCallback(() => {
     if (trackingFrameIdRef.current !== null) {
       cancelAnimationFrame(trackingFrameIdRef.current);
@@ -129,10 +132,17 @@ export const AirNinjaGame: React.FC = () => {
       const engine = engineRef.current;
 
       // Detected points are forwarded to the engine via the tracker's onFingertipMove callback
-      if (video && tracker && engine && video.readyState >= 2) {
+      if (video && tracker && engine && video.readyState >= 2 && video.videoWidth > 0) {
         const point = tracker.processVideoFrame(video, performance.now());
         if (!point) {
-          setIsHandDetected(false);
+          // Dead-reckoning extrapolation: interpolate between camera inference intervals for 60-120fps smoothness
+          const predicted = tracker.predictCurrentPosition(performance.now());
+          if (predicted && tracker.getStatus() === 'tracking') {
+            engine.updateFingertip(predicted, true);
+            setCurrentFingertip(predicted);
+          } else {
+            setIsHandDetected(false);
+          }
         }
       }
 
@@ -164,8 +174,12 @@ export const AirNinjaGame: React.FC = () => {
 
     const success = await camManager.startCamera();
     if (!success) {
+      setMediaStream(null);
       return false;
     }
+
+    const stream = camManager.getStream();
+    setMediaStream(stream);
 
     const width = engineRef.current?.getWidth() || window.innerWidth;
     const height = engineRef.current?.getHeight() || window.innerHeight;
@@ -214,6 +228,7 @@ export const AirNinjaGame: React.FC = () => {
       handTrackerRef.current.dispose();
       handTrackerRef.current = null;
     }
+    setMediaStream(null);
     setCameraStatus('uninitialized');
     setIsHandDetected(false);
     setCurrentFingertip(null);
@@ -291,7 +306,7 @@ export const AirNinjaGame: React.FC = () => {
       setGameStatus('calibrating');
       initCameraAndTracker();
     } else {
-      // Direct start with mouse blade
+      // Direct start with touch / mouse blade
       engineRef.current?.startRound(mode);
     }
   };
@@ -355,7 +370,7 @@ export const AirNinjaGame: React.FC = () => {
     }
   };
 
-  // Mouse & Touch fallback blade slicing
+  // Touch and Pointer Input Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -385,6 +400,18 @@ export const AirNinjaGame: React.FC = () => {
     }
   };
 
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!userSettings.cameraEnabled || trackerStatus === 'error' || !isHandDetected) {
+      const touch = e.touches[0];
+      if (!touch) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      engineRef.current?.updateFingertip({ x, y }, false);
+      setCurrentFingertip({ x, y });
+    }
+  };
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -408,14 +435,23 @@ export const AirNinjaGame: React.FC = () => {
   });
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black select-none font-sans">
-      {/* Webcam source for hand tracking. Kept rendered (not display:none) so the browser keeps decoding frames */}
+    <div className="relative w-screen h-dvh overflow-hidden bg-black select-none font-sans touch-none overscroll-none">
+      {/* Persistent Master Video Element for background decoding */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        className="absolute top-0 left-0 w-px h-px opacity-0 pointer-events-none"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '320px',
+          height: '240px',
+          opacity: 0.001,
+          pointerEvents: 'none',
+          zIndex: -100,
+        }}
       />
 
       {/* Main 2D Canvas Arena */}
@@ -425,6 +461,9 @@ export const AirNinjaGame: React.FC = () => {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onTouchStart={handleTouchMove}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handlePointerUp}
         className="w-full h-full block cursor-crosshair touch-none"
       />
 
@@ -450,19 +489,19 @@ export const AirNinjaGame: React.FC = () => {
 
           {/* Pause Overlay */}
           {gameStatus === 'paused' && (
-            <div className="absolute inset-0 z-30 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-              <h2 className="text-5xl font-black text-cyan-300 tracking-wider">GAME PAUSED</h2>
-              <p className="text-xs text-gray-400 mt-2">Press P or Esc to resume</p>
-              <div className="flex gap-4 mt-6">
+            <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-white text-center">
+              <h2 className="text-4xl sm:text-5xl font-black text-cyan-300 tracking-wider">GAME PAUSED</h2>
+              <p className="text-xs text-gray-400 mt-2">Tap Resume or press Esc</p>
+              <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-xs">
                 <button
                   onClick={handleTogglePause}
-                  className="px-6 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold text-sm uppercase tracking-wider transition-all active:scale-95 shadow-lg"
+                  className="w-full py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold text-sm uppercase tracking-wider transition-all active:scale-95 shadow-lg"
                 >
                   Resume Playing
                 </button>
                 <button
                   onClick={handleExitToMenu}
-                  className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm uppercase tracking-wider transition-all active:scale-95"
+                  className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm uppercase tracking-wider transition-all active:scale-95"
                 >
                   Exit to Menu
                 </button>
@@ -478,7 +517,7 @@ export const AirNinjaGame: React.FC = () => {
           cameraStatus={cameraStatus}
           trackerStatus={trackerStatus}
           errorMessage={cameraError}
-          videoRef={videoRef}
+          mediaStream={mediaStream}
           currentFingertip={currentFingertip}
           isHandDetected={isHandDetected}
           onCalibrationComplete={handleCalibrationComplete}

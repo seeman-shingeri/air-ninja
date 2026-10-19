@@ -420,7 +420,7 @@ export class GameRenderer {
   }
 
   /**
-   * Renders glowing blade trail
+   * Renders glowing blade trail with ultra-smooth quadratic curved ribbon
    */
   public static renderBladeTrail(
     ctx: CanvasRenderingContext2D,
@@ -431,23 +431,32 @@ export class GameRenderer {
 
     ctx.save();
     const now = performance.now();
+    const pts = trail.filter((p) => (now - p.timestamp) / 1000 <= maxAge);
+    if (pts.length < 2) {
+      ctx.restore();
+      return;
+    }
 
-    for (let i = 1; i < trail.length; i++) {
-      const p1 = trail[i - 1];
-      const p2 = trail[i];
-
+    for (let i = 1; i < pts.length; i++) {
+      const p1 = pts[i - 1];
+      const p2 = pts[i];
       const age = (now - p2.timestamp) / 1000;
-      if (age > maxAge) continue;
-
-      const progress = 1 - age / maxAge; // 1 at tip, 0 at tail
-      const width = Math.max(1.5, progress * 14);
+      const progress = Math.max(0, Math.min(1, 1 - age / maxAge));
+      const width = Math.max(2, progress * 16);
 
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
+      if (i < pts.length - 1) {
+        const p3 = pts[i + 1];
+        const midX = (p2.x + p3.x) / 2;
+        const midY = (p2.y + p3.y) / 2;
+        ctx.quadraticCurveTo(p2.x, p2.y, midX, midY);
+      } else {
+        ctx.lineTo(p2.x, p2.y);
+      }
 
       // Outer neon cyan/violet glow
-      ctx.strokeStyle = `rgba(0, 229, 255, ${progress * 0.85})`;
+      ctx.strokeStyle = `rgba(0, 229, 255, ${progress * 0.9})`;
       ctx.lineWidth = width;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -455,7 +464,10 @@ export class GameRenderer {
       ctx.shadowBlur = 12 * progress;
       ctx.stroke();
 
-      // Sharp bright core
+      // Sharp luminous white core
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
       ctx.strokeStyle = `rgba(255, 255, 255, ${progress * 0.95})`;
       ctx.lineWidth = Math.max(1, width * 0.35);
       ctx.shadowBlur = 4;

@@ -34,17 +34,23 @@ export class HandTracker {
 
   private lastTrackingTime = 0;
   private lastPoint: Point2D | null = null;
+  private lastVelocity: Vector2D = { x: 0, y: 0 };
   private lastTimestamp = 0;
   private isProcessing = false;
-  private trackingLostTimeout = 250; // ms grace period before declaring hand lost
+  private trackingLostTimeout = 320; // ms grace period before declaring hand lost
   private isCleanedUp = false;
+
+  // Inference throttling: minimum 20ms between inferences (up to 50 inferences/sec)
+  private minInferenceInterval = 20;
+  private lastInferenceTime = 0;
 
   constructor(options: HandTrackerOptions, callbacks: HandTrackerCallbacks = {}) {
     this.options = { mirrored: true, sensitivity: 'medium', ...options };
     this.callbacks = callbacks;
 
-    const beta = options.sensitivity === 'high' ? 0.025 : options.sensitivity === 'low' ? 0.006 : 0.012;
-    this.smoother = new Point2DSmoother(1.2, beta);
+    // Responsive beta values for One Euro Filter: higher beta = zero lag during fast movement
+    const beta = options.sensitivity === 'high' ? 0.035 : options.sensitivity === 'low' ? 0.012 : 0.022;
+    this.smoother = new Point2DSmoother(1.0, beta);
   }
 
   public setDimensions(width: number, height: number): void {
@@ -58,12 +64,20 @@ export class HandTracker {
 
   public setSensitivity(sensitivity: 'low' | 'medium' | 'high'): void {
     this.options.sensitivity = sensitivity;
-    const beta = sensitivity === 'high' ? 0.025 : sensitivity === 'low' ? 0.006 : 0.012;
-    this.smoother = new Point2DSmoother(1.2, beta);
+    const beta = sensitivity === 'high' ? 0.035 : sensitivity === 'low' ? 0.012 : 0.022;
+    this.smoother = new Point2DSmoother(1.0, beta);
   }
 
   public getStatus(): TrackerStatus {
     return this.status;
+  }
+
+  public getLastPoint(): Point2D | null {
+    return this.lastPoint;
+  }
+
+  public getLastVelocity(): Vector2D {
+    return this.lastVelocity;
   }
 
   private setStatus(status: TrackerStatus, error?: string): void {
@@ -74,7 +88,7 @@ export class HandTracker {
   }
 
   /**
-   * Initializes MediaPipe HandLandmarker with local wasm and model asset fallback
+   * Initializes MediaPipe HandLandmarker with GPU first and fast CPU fallback
    */
   public async init(): Promise<boolean> {
     if (this.landmarker) return true;
@@ -100,9 +114,9 @@ export class HandTracker {
               },
               runningMode: 'VIDEO',
               numHands: 1,
-              minHandDetectionConfidence: 0.5,
-              minHandPresenceConfidence: 0.5,
-              minTrackingConfidence: 0.5,
+              minHandDetectionConfidence: 0.45,
+              minHandPresenceConfidence: 0.45,
+              minTrackingConfidence: 0.45,
             });
             break;
           } catch (e) {
@@ -127,23 +141,47 @@ export class HandTracker {
       return true;
     } catch (err: unknown) {
       const error = err as Error;
-      console.warn('[HandTracker] Hand landmarker initialization failed:', error);
-      this.setStatus('error', `Hand tracker could not be loaded (${error.message || 'Network/Model error'}). Mouse/touch blade is available!`);
+      console.warn('[HandTracker] Initialization error:', error);
+      this.setStatus('error', `Hand tracker failed to load (${error.message || 'Network/Model'}). Touch / mouse blade is active!`);
       return false;
     }
   }
 
   /**
-   * Processes a video frame using MediaPipe HandLandmarker
+   * Predicts fingertip position between camera frames using dead-reckoning velocity extrapolation
+   */
+  public predictCurrentPosition(currentTime: number): Point2D | null {
+    if (!this.lastPoint || this.lastTimestamp <= 0) return null;
+    const dt = (currentTime - this.lastTimestamp) / 1000;
+    if (dt > 0.15) return this.lastPoint; // Don't extrapolate stale positions
+
+    // Damped velocity extrapolation
+    const damping = Math.max(0, 1 - dt * 4.0);
+    return {
+      x: Math.max(0, Math.min(this.options.canvasWidth, this.lastPoint.x + this.lastVelocity.x * dt * damping)),
+      y: Math.max(0, Math.min(this.options.canvasHeight, this.lastPoint.y + this.lastVelocity.y * dt * damping)),
+    };
+  }
+
+  /**
+   * Processes a video frame using MediaPipe HandLandmarker with throttling
    */
   public processVideoFrame(video: HTMLVideoElement, timestamp: number): Point2D | null {
     if (!this.landmarker || this.isProcessing) return null;
-    if (video.readyState < 2 || video.videoWidth === 0) return null;
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return null;
+
+    const now = performance.now();
+    if (now - this.lastInferenceTime < this.minInferenceInterval) {
+      return null;
+    }
 
     this.isProcessing = true;
+    this.lastInferenceTime = now;
 
     try {
-      const results = this.landmarker.detectForVideo(video, timestamp);
+      // MediaPipe requires monotonically increasing integer timestamp
+      const integerTimestamp = Math.max(Math.floor(this.lastTimestamp + 1), Math.floor(timestamp));
+      const results = this.landmarker.detectForVideo(video, integerTimestamp);
       this.isProcessing = false;
 
       if (results.landmarks && results.landmarks.length > 0 && results.landmarks[0].length > 8) {
@@ -160,12 +198,12 @@ export class HandTracker {
         });
 
         // Apply One Euro smoothing
-        const smoothed = this.smoother.filter(canvasPoint.x, canvasPoint.y, timestamp);
+        const smoothed = this.smoother.filter(canvasPoint.x, canvasPoint.y, now);
 
         // Estimate velocity
         let velocity: Vector2D = { x: 0, y: 0 };
         if (this.lastPoint && this.lastTimestamp > 0) {
-          const dt = Math.max(0.001, (timestamp - this.lastTimestamp) / 1000);
+          const dt = Math.max(0.001, (now - this.lastTimestamp) / 1000);
           velocity = {
             x: (smoothed.x - this.lastPoint.x) / dt,
             y: (smoothed.y - this.lastPoint.y) / dt,
@@ -173,8 +211,9 @@ export class HandTracker {
         }
 
         this.lastPoint = smoothed;
-        this.lastTimestamp = timestamp;
-        this.lastTrackingTime = performance.now();
+        this.lastVelocity = velocity;
+        this.lastTimestamp = now;
+        this.lastTrackingTime = now;
 
         if (this.status !== 'tracking') {
           this.setStatus('tracking');
@@ -186,12 +225,12 @@ export class HandTracker {
 
         return smoothed;
       } else {
-        // Check for hand loss tolerance
-        const now = performance.now();
+        // Hand loss tolerance check
         if (now - this.lastTrackingTime > this.trackingLostTimeout) {
           if (this.status === 'tracking') {
             this.setStatus('lost');
             this.lastPoint = null;
+            this.lastVelocity = { x: 0, y: 0 };
             this.smoother.reset();
             if (this.callbacks.onTrackingLost) {
               this.callbacks.onTrackingLost();
@@ -222,6 +261,7 @@ export class HandTracker {
     }
 
     this.lastPoint = smoothed;
+    this.lastVelocity = velocity;
     this.lastTimestamp = timestamp;
     this.lastTrackingTime = timestamp;
 
@@ -236,6 +276,7 @@ export class HandTracker {
 
   public handlePointerUp(): void {
     this.lastPoint = null;
+    this.lastVelocity = { x: 0, y: 0 };
     this.smoother.reset();
     if (this.callbacks.onTrackingLost) {
       this.callbacks.onTrackingLost();
@@ -245,6 +286,7 @@ export class HandTracker {
   public reset(): void {
     this.smoother.reset();
     this.lastPoint = null;
+    this.lastVelocity = { x: 0, y: 0 };
     this.lastTimestamp = 0;
   }
 

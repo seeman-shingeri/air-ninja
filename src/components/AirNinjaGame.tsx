@@ -27,8 +27,9 @@ export const AirNinjaGame: React.FC = () => {
   const handTrackerRef = useRef<HandTracker | null>(null);
   const voiceManagerRef = useRef<VoiceManager | null>(null);
 
-  // Animation frame for tracking video processing
+  // Pending video-frame / animation-frame callback for tracking video processing
   const trackingFrameIdRef = useRef<number | null>(null);
+  const trackingUsesVideoFrameRef = useRef(false);
 
   // React state for HUD & Overlays
   const [userSettings, setUserSettings] = useState<UserSettings>(() => SettingsStorage.getSettings());
@@ -75,6 +76,27 @@ export const AirNinjaGame: React.FC = () => {
     userSettingsRef.current = userSettings;
   }, [userSettings]);
 
+  // The fingertip is fed straight to the engine every frame. React state for it is only
+  // needed by the calibration overlay, so per-frame re-renders are limited to that screen.
+  const gameStatusRef = useRef(gameStatus);
+  useEffect(() => {
+    gameStatusRef.current = gameStatus;
+  }, [gameStatus]);
+  const handDetectedRef = useRef(false);
+
+  const publishFingertip = useCallback((point: Point2D | null) => {
+    if (gameStatusRef.current === 'calibrating' || point === null) {
+      setCurrentFingertip(point);
+    }
+  }, []);
+
+  const publishHandDetected = useCallback((detected: boolean) => {
+    if (handDetectedRef.current !== detected) {
+      handDetectedRef.current = detected;
+      setIsHandDetected(detected);
+    }
+  }, []);
+
   // Initialize GameEngine
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -120,44 +142,54 @@ export const AirNinjaGame: React.FC = () => {
     }
   }, [userSettings]);
 
-  // Video tracking loop with velocity dead-reckoning extrapolation for 60-120fps smoothness
-  const startTrackingLoop = useCallback(() => {
-    if (trackingFrameIdRef.current !== null) {
-      cancelAnimationFrame(trackingFrameIdRef.current);
+  const stopTrackingLoop = useCallback(() => {
+    const id = trackingFrameIdRef.current;
+    if (id === null) return;
+    const video = videoRef.current;
+    if (trackingUsesVideoFrameRef.current && video) {
+      video.cancelVideoFrameCallback(id);
+    } else {
+      cancelAnimationFrame(id);
     }
+    trackingFrameIdRef.current = null;
+  }, []);
 
-    const processFrame = () => {
-      const video = videoRef.current;
+  // Video tracking loop: runs detection exactly once per new camera frame. Running it on
+  // every display refresh re-detected the same frame and stole GPU time from rendering.
+  const startTrackingLoop = useCallback(() => {
+    stopTrackingLoop();
+
+    const video = videoRef.current;
+    if (!video) return;
+    const useVideoFrames = typeof video.requestVideoFrameCallback === 'function';
+    trackingUsesVideoFrameRef.current = useVideoFrames;
+    let lastVideoTime = -1;
+
+    // Detected points reach the engine through the tracker's onFingertipMove callback
+    const detect = (timestamp: number) => {
       const tracker = handTrackerRef.current;
-      const engine = engineRef.current;
-
-      // Detected points are forwarded to the engine via the tracker's onFingertipMove callback
-      if (video && tracker && engine && video.readyState >= 2 && video.videoWidth > 0) {
-        const point = tracker.processVideoFrame(video, performance.now());
-        if (!point) {
-          // Dead-reckoning extrapolation: interpolate between camera inference intervals for 60-120fps smoothness
-          const predicted = tracker.predictCurrentPosition(performance.now());
-          if (predicted && tracker.getStatus() === 'tracking') {
-            engine.updateFingertip(predicted, true);
-            setCurrentFingertip(predicted);
-          } else {
-            setIsHandDetected(false);
-          }
-        }
+      if (tracker && engineRef.current && video.readyState >= 2 && video.videoWidth > 0) {
+        tracker.processVideoFrame(video, timestamp);
       }
-
-      trackingFrameIdRef.current = requestAnimationFrame(processFrame);
     };
 
-    trackingFrameIdRef.current = requestAnimationFrame(processFrame);
-  }, []);
-
-  const stopTrackingLoop = useCallback(() => {
-    if (trackingFrameIdRef.current !== null) {
-      cancelAnimationFrame(trackingFrameIdRef.current);
-      trackingFrameIdRef.current = null;
+    if (useVideoFrames) {
+      const onVideoFrame: VideoFrameRequestCallback = (now) => {
+        detect(now);
+        trackingFrameIdRef.current = video.requestVideoFrameCallback(onVideoFrame);
+      };
+      trackingFrameIdRef.current = video.requestVideoFrameCallback(onVideoFrame);
+    } else {
+      const onAnimationFrame = (now: number) => {
+        if (video.currentTime !== lastVideoTime) {
+          lastVideoTime = video.currentTime;
+          detect(now);
+        }
+        trackingFrameIdRef.current = requestAnimationFrame(onAnimationFrame);
+      };
+      trackingFrameIdRef.current = requestAnimationFrame(onAnimationFrame);
     }
-  }, []);
+  }, [stopTrackingLoop]);
 
   // Start Camera and Tracker
   const initCameraAndTracker = useCallback(async () => {
@@ -198,12 +230,13 @@ export const AirNinjaGame: React.FC = () => {
         },
         onFingertipMove: (point) => {
           engineRef.current?.updateFingertip(point, true);
-          setCurrentFingertip(point);
-          setIsHandDetected(true);
+          publishFingertip(point);
+          publishHandDetected(true);
         },
         onTrackingLost: () => {
-          setIsHandDetected(false);
+          publishHandDetected(false);
           engineRef.current?.updateFingertip(null, true);
+          publishFingertip(null);
         },
       }
     );
@@ -215,7 +248,7 @@ export const AirNinjaGame: React.FC = () => {
       return true;
     }
     return false;
-  }, [userSettings.mirrorCamera, userSettings.sensitivity, startTrackingLoop]);
+  }, [userSettings.mirrorCamera, userSettings.sensitivity, startTrackingLoop, publishFingertip, publishHandDetected]);
 
   // Teardown camera & tracker
   const releaseCamera = useCallback(() => {
@@ -230,9 +263,9 @@ export const AirNinjaGame: React.FC = () => {
     }
     setMediaStream(null);
     setCameraStatus('uninitialized');
-    setIsHandDetected(false);
+    publishHandDetected(false);
     setCurrentFingertip(null);
-  }, [stopTrackingLoop]);
+  }, [stopTrackingLoop, publishHandDetected]);
 
   // Start Voice Recognition
   const initVoice = useCallback(() => {
@@ -378,7 +411,7 @@ export const AirNinjaGame: React.FC = () => {
 
     if (!userSettings.cameraEnabled || trackerStatus === 'error' || !isHandDetected) {
       engineRef.current?.updateFingertip({ x, y }, false);
-      setCurrentFingertip({ x, y });
+      publishFingertip({ x, y });
     }
   };
 
@@ -389,7 +422,7 @@ export const AirNinjaGame: React.FC = () => {
 
     if (!userSettings.cameraEnabled || trackerStatus === 'error' || !isHandDetected) {
       engineRef.current?.updateFingertip({ x, y }, false);
-      setCurrentFingertip({ x, y });
+      publishFingertip({ x, y });
     }
   };
 
@@ -408,7 +441,7 @@ export const AirNinjaGame: React.FC = () => {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
       engineRef.current?.updateFingertip({ x, y }, false);
-      setCurrentFingertip({ x, y });
+      publishFingertip({ x, y });
     }
   };
 

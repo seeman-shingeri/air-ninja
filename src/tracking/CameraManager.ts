@@ -96,11 +96,13 @@ export class CameraManager {
       const idealHeight = isMob ? 480 : 480;
 
       const mediaPromise = navigator.mediaDevices.getUserMedia({
+        // A higher frame rate means fresher fingertip samples and smoother, lower-latency
+        // slashes where the camera supports it
         video: {
           facingMode: 'user',
           width: { ideal: idealWidth, max: 640 },
           height: { ideal: idealHeight, max: 640 },
-          frameRate: { ideal: 30, max: 60 },
+          frameRate: { ideal: 60 },
         },
         audio: false,
       });

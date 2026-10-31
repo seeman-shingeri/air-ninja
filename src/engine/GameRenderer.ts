@@ -1,6 +1,10 @@
 import { Bomb, Fruit, FruitHalf, Point2D, PopupText, SlicePoint, SpecialPower } from '../types';
 
 export class GameRenderer {
+  private static cachedBgGrad: CanvasGradient | null = null;
+  private static cachedBgW = 0;
+  private static cachedBgH = 0;
+
   /**
    * Renders arena background with subtle ambiance
    */
@@ -10,37 +14,40 @@ export class GameRenderer {
     height: number,
     activePowers: Record<SpecialPower, boolean>
   ): void {
-    // Base arcade background gradient
-    const bgGrad = ctx.createRadialGradient(
-      width / 2,
-      height / 2,
-      50,
-      width / 2,
-      height / 2,
-      Math.max(width, height) * 0.8
-    );
-    bgGrad.addColorStop(0, '#0d1527');
-    bgGrad.addColorStop(1, '#050811');
-    ctx.fillStyle = bgGrad;
+    // Base arcade background gradient (cached by dimensions)
+    if (!this.cachedBgGrad || this.cachedBgW !== width || this.cachedBgH !== height) {
+      const grad = ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        50,
+        width / 2,
+        height / 2,
+        Math.max(width, height) * 0.8
+      );
+      grad.addColorStop(0, '#0d1527');
+      grad.addColorStop(1, '#050811');
+      this.cachedBgGrad = grad;
+      this.cachedBgW = width;
+      this.cachedBgH = height;
+    }
+    ctx.fillStyle = this.cachedBgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // Subtle ninja dojo grid pattern
+    // Subtle ninja dojo grid pattern (batched into single draw call)
     ctx.save();
     ctx.strokeStyle = 'rgba(0, 229, 255, 0.025)';
     ctx.lineWidth = 1;
     const gridSize = 60;
+    ctx.beginPath();
     for (let x = 0; x < width; x += gridSize) {
-      ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
-      ctx.stroke();
     }
     for (let y = 0; y < height; y += gridSize) {
-      ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);
-      ctx.stroke();
     }
+    ctx.stroke();
     ctx.restore();
 
     // Special power screen vignettes

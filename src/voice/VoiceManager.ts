@@ -129,6 +129,12 @@ const SPOKEN_FRUIT_REGEX = new RegExp(
   'gi'
 );
 
+const SLOW_MOTION_REGEX = /\b(slow\s*motion|slow\s*mo)\b/i;
+const DOUBLE_SCORE_REGEX = /\b(double\s*score|double\s*points)\b/i;
+const BOMB_MODE_REGEX = /\b(bomb\s*mode|more\s*bombs)\b/i;
+const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=\-_`~()?!]/g;
+const WHITESPACE_REGEX = /\s+/g;
+
 export class VoiceManager {
   private recognition: SpeechRecognitionInstance | null = null;
   private isListening = false;
@@ -172,8 +178,8 @@ export class VoiceManager {
   public static normalizeTranscript(raw: string): string {
     return raw
       .toLowerCase()
-      .replace(/[.,/#!$%^&*;:{}=\-_`~()?!]/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(PUNCTUATION_REGEX, '')
+      .replace(WHITESPACE_REGEX, ' ')
       .trim();
   }
 
@@ -183,13 +189,13 @@ export class VoiceManager {
   public static matchCommand(text: string): SpecialPower | null {
     const norm = this.normalizeTranscript(text);
 
-    if (/\b(slow\s*motion|slow\s*mo)\b/i.test(norm)) {
+    if (SLOW_MOTION_REGEX.test(norm)) {
       return 'slow_motion';
     }
-    if (/\b(double\s*score|double\s*points)\b/i.test(norm)) {
+    if (DOUBLE_SCORE_REGEX.test(norm)) {
       return 'double_score';
     }
-    if (/\b(bomb\s*mode|more\s*bombs)\b/i.test(norm)) {
+    if (BOMB_MODE_REGEX.test(norm)) {
       return 'bomb_mode';
     }
 

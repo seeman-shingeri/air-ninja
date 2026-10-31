@@ -416,8 +416,9 @@ export class GameEngine {
 
     // Limit trail length according to performance mode
     const maxPoints = GAME_CONSTANTS.TRAIL_MAX_POINTS[this.userSettings.performanceMode] || 20;
-    if (this.trail.length > maxPoints) {
-      this.trail.shift();
+    const excess = this.trail.length - maxPoints;
+    if (excess > 0) {
+      this.trail.splice(0, excess);
     }
 
     // Check collision if playing
@@ -649,11 +650,17 @@ export class GameEngine {
       }
     }
 
-    // 6. Fade blade trail
-    for (let i = this.trail.length - 1; i >= 0; i--) {
-      if ((now - this.trail[i].timestamp) / 1000 > GAME_CONSTANTS.TRAIL_POINT_MAX_AGE) {
-        this.trail.splice(i, 1);
-      }
+    // 6. Fade blade trail (chronological: expired points are contiguous at the start)
+    const maxAgeSec = GAME_CONSTANTS.TRAIL_POINT_MAX_AGE;
+    let expiredTrailCount = 0;
+    while (
+      expiredTrailCount < this.trail.length &&
+      (now - this.trail[expiredTrailCount].timestamp) / 1000 > maxAgeSec
+    ) {
+      expiredTrailCount++;
+    }
+    if (expiredTrailCount > 0) {
+      this.trail.splice(0, expiredTrailCount);
     }
   }
 

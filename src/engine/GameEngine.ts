@@ -51,6 +51,7 @@ export class GameEngine {
   public trail: SlicePoint[] = [];
   public currentFingertip: Point2D | null = null;
   public isHandTracking = false;
+  private lastWhooshTime = 0;
 
   // Game Stats
   public stats: GameStats = {
@@ -437,9 +438,11 @@ export class GameEngine {
     const dy = p2.y - p1.y;
     const swipeDist = Math.sqrt(dx * dx + dy * dy);
 
-    // Audio whoosh when swiping fast
-    if (swipeDist > 40) {
+    // Audio whoosh when swiping fast (throttled to avoid Web Audio node thrashing)
+    const now = performance.now();
+    if (swipeDist > 40 && now - this.lastWhooshTime >= 140) {
       this.soundManager.playWhoosh(swipeDist * 10);
+      this.lastWhooshTime = now;
     }
 
     // 1. Check fruits

@@ -229,42 +229,40 @@ export class ParticleSystem {
       const p = this.pool[i];
       if (!p.active || p.alpha <= 0) continue;
 
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rotation);
+      const alpha = p.alpha > 1 ? 1 : p.alpha < 0 ? 0 : p.alpha;
 
-      if (p.shape === 'spark') {
+      if (p.shape === 'circle' || p.shape === 'smoke') {
+        // Fast direct rendering without matrix save/restore or rotation overhead
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === 'spark') {
+        ctx.save();
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
         ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
-      } else if (p.shape === 'seed') {
+        ctx.restore();
+      } else if (p.shape === 'seed' || p.shape === 'splat') {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.9, 0, 0, Math.PI * 2);
+        if (p.shape === 'seed') {
+          ctx.ellipse(0, 0, p.radius * 1.8, p.radius * 0.9, 0, 0, Math.PI * 2);
+        } else {
+          ctx.ellipse(0, 0, p.radius * 1.5, p.radius * 0.8, 0, 0, Math.PI * 2);
+        }
         ctx.fill();
-      } else if (p.shape === 'smoke') {
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (p.shape === 'splat') {
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, p.radius * 1.5, p.radius * 0.8, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // Circle / juice drop
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.restore();
       }
-
-      ctx.restore();
     }
     ctx.restore();
   }

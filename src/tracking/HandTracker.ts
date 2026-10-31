@@ -39,6 +39,7 @@ export class HandTracker {
   private isProcessing = false;
   private trackingLostTimeout = 320; // ms grace period before declaring hand lost
   private isCleanedUp = false;
+  private reusableMappedPoint: Point2D = { x: 0, y: 0 };
 
   // Guards against detecting twice for one frame. Detection is already paced once per
   // camera frame by the caller, so this stays below a 60 fps frame interval (16.7ms)
@@ -197,13 +198,18 @@ export class HandTracker {
         const rawLandmark = results.landmarks[0][8];
 
         // Map to canvas
-        const canvasPoint = CoordinateMapper.mapLandmarkToCanvas(rawLandmark.x, rawLandmark.y, {
-          canvasWidth: this.options.canvasWidth,
-          canvasHeight: this.options.canvasHeight,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          mirrored: this.options.mirrored,
-        });
+        const canvasPoint = CoordinateMapper.mapLandmarkToCanvas(
+          rawLandmark.x,
+          rawLandmark.y,
+          {
+            canvasWidth: this.options.canvasWidth,
+            canvasHeight: this.options.canvasHeight,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            mirrored: this.options.mirrored,
+          },
+          this.reusableMappedPoint
+        );
 
         // Apply One Euro smoothing
         const smoothed = this.smoother.filter(canvasPoint.x, canvasPoint.y, now);

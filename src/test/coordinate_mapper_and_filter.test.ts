@@ -45,6 +45,26 @@ describe('CoordinateMapper and OneEuroFilter', () => {
     expect(point.y).toBeCloseTo(450);
   });
 
+  it('mutates target point directly when out parameter is provided', () => {
+    const target = { x: 0, y: 0 };
+    const result = CoordinateMapper.mapLandmarkToCanvas(
+      0.5,
+      0.5,
+      {
+        canvasWidth: 1000,
+        canvasHeight: 500,
+        videoWidth: 640,
+        videoHeight: 480,
+        mirrored: false,
+      },
+      target
+    );
+
+    expect(result).toBe(target);
+    expect(target.x).toBeCloseTo(500);
+    expect(target.y).toBeCloseTo(250);
+  });
+
   it('stabilizes quivering input with low-pass filtering at low velocity', () => {
     const filter = new OneEuroFilter(1.0, 0.01);
     let t = 1000;

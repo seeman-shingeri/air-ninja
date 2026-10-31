@@ -16,12 +16,20 @@ export class CoordinateMapper {
   public static mapLandmarkToCanvas(
     normalizedX: number,
     normalizedY: number,
-    options: CoordinateMapperOptions
+    options: CoordinateMapperOptions,
+    out?: Point2D
   ): Point2D {
     const { canvasWidth, canvasHeight, videoWidth, videoHeight, mirrored = true } = options;
 
     if (canvasWidth <= 0 || canvasHeight <= 0 || videoWidth <= 0 || videoHeight <= 0) {
-      return { x: normalizedX * canvasWidth, y: normalizedY * canvasHeight };
+      const fallbackX = normalizedX * canvasWidth;
+      const fallbackY = normalizedY * canvasHeight;
+      if (out) {
+        out.x = fallbackX;
+        out.y = fallbackY;
+        return out;
+      }
+      return { x: fallbackX, y: fallbackY };
     }
 
     // Mirror horizontally if requested
@@ -50,9 +58,18 @@ export class CoordinateMapper {
     const canvasX = offsetX + effectiveX * renderWidth;
     const canvasY = offsetY + effectiveY * renderHeight;
 
+    const finalX = Math.max(0, Math.min(canvasWidth, canvasX));
+    const finalY = Math.max(0, Math.min(canvasHeight, canvasY));
+
+    if (out) {
+      out.x = finalX;
+      out.y = finalY;
+      return out;
+    }
+
     return {
-      x: Math.max(0, Math.min(canvasWidth, canvasX)),
-      y: Math.max(0, Math.min(canvasHeight, canvasY)),
+      x: finalX,
+      y: finalY,
     };
   }
 }

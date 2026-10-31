@@ -105,13 +105,20 @@ export class Point2DSmoother {
     return 1.0 / (1.0 + tau / dt);
   }
 
-  public filter(x: number, y: number, timestamp = performance.now()): { x: number; y: number } {
+  public filterTo<T extends { x: number; y: number }>(
+    x: number,
+    y: number,
+    out: T,
+    timestamp = performance.now()
+  ): T {
     if (this.x === null || this.y === null || this.lastTime === null) {
       this.x = this.rawX = x;
       this.y = this.rawY = y;
       this.speed = 0;
       this.lastTime = timestamp;
-      return { x, y };
+      out.x = x;
+      out.y = y;
+      return out;
     }
 
     const dt = Math.max(1e-4, (timestamp - this.lastTime) / 1000);
@@ -125,7 +132,13 @@ export class Point2DSmoother {
     const a = Point2DSmoother.alpha(this.minCutoff + this.beta * this.speed, dt);
     this.x += a * (x - this.x);
     this.y += a * (y - this.y);
-    return { x: this.x, y: this.y };
+    out.x = this.x;
+    out.y = this.y;
+    return out;
+  }
+
+  public filter(x: number, y: number, timestamp = performance.now()): { x: number; y: number } {
+    return this.filterTo(x, y, { x: 0, y: 0 }, timestamp);
   }
 
   public reset(): void {

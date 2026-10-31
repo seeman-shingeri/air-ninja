@@ -123,4 +123,18 @@ describe('CoordinateMapper and OneEuroFilter', () => {
     // Within 3 frames the blade trails the real fingertip by less than one frame of motion
     expect(x - out.x).toBeLessThan(50);
   });
+
+  it('supports in-place mutation with filterTo to avoid heap allocations', () => {
+    const smoother = new Point2DSmoother();
+    const target = { x: 0, y: 0 };
+    const returned = smoother.filterTo(150, 250, target, 1000);
+
+    expect(returned).toBe(target);
+    expect(target.x).toBe(150);
+    expect(target.y).toBe(250);
+
+    smoother.filterTo(200, 300, target, 1016);
+    expect(target.x).toBeGreaterThan(150);
+    expect(target.y).toBeGreaterThan(250);
+  });
 });

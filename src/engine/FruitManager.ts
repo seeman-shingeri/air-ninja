@@ -6,6 +6,9 @@ export interface FruitManagerCallbacks {
 }
 
 export class FruitManager {
+  private static nextFruitId = 1;
+  private static nextBombId = 1;
+
   public fruits: Fruit[] = [];
   public slicedHalves: FruitHalf[] = [];
   public bombs: Bomb[] = [];
@@ -55,7 +58,7 @@ export class FruitManager {
     const rotationSpeed = (Math.random() - 0.5) * 5.0;
 
     const fruit: Fruit = {
-      id: `fruit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `f_${FruitManager.nextFruitId++}`,
       type,
       x,
       y,
@@ -96,7 +99,7 @@ export class FruitManager {
     const vx = directionToCenter * (100 + Math.random() * 140);
 
     const bomb: Bomb = {
-      id: `bomb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `b_${FruitManager.nextBombId++}`,
       x,
       y,
       vx,

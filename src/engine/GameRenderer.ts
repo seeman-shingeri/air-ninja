@@ -1,5 +1,11 @@
 import { Bomb, Fruit, FruitHalf, Point2D, PopupText, SlicePoint, SpecialPower } from '../types';
 
+const STRAWBERRY_SEED_OFFSETS: readonly (readonly [number, number])[] = [
+  [-8, -8], [0, -12], [8, -8],
+  [-10, 0], [0, -2], [10, 0],
+  [-5, 10], [5, 10], [0, 18],
+] as const;
+
 export class GameRenderer {
   private static cachedBgGrad: CanvasGradient | null = null;
   private static cachedBgW = 0;
@@ -128,15 +134,18 @@ export class GameRenderer {
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
 
-        // Darker green wavy stripes
+        // Darker green wavy stripes (batched into single path)
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#1b5e20';
+        ctx.beginPath();
         for (let i = 0; i < 6; i++) {
           const angle = (i * Math.PI) / 3;
-          ctx.beginPath();
-          ctx.arc(Math.cos(angle) * r * 0.5, Math.sin(angle) * r * 0.5, r * 0.38, 0, Math.PI * 2);
-          ctx.fill();
+          const cx = Math.cos(angle) * r * 0.5;
+          const cy = Math.sin(angle) * r * 0.5;
+          ctx.moveTo(cx + r * 0.38, cy);
+          ctx.arc(cx, cy, r * 0.38, 0, Math.PI * 2);
         }
+        ctx.fill();
         break;
       }
 
@@ -214,19 +223,18 @@ export class GameRenderer {
         ctx.bezierCurveTo(r * 1.1, -r * 0.8, r * 1.2, r * 0.2, 0, r * 1.1);
         ctx.fill();
 
-        // Seed dots
+        // Seed dots (batched into single path, using static offsets)
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#fff59d';
-        const seedOffsets = [
-          [-8, -8], [0, -12], [8, -8],
-          [-10, 0], [0, -2], [10, 0],
-          [-5, 10], [5, 10], [0, 18],
-        ];
-        seedOffsets.forEach(([sx, sy]) => {
-          ctx.beginPath();
-          ctx.ellipse(sx * (r / 28), sy * (r / 28), 1.5, 2.5, 0, 0, Math.PI * 2);
-          ctx.fill();
-        });
+        ctx.beginPath();
+        for (let i = 0; i < STRAWBERRY_SEED_OFFSETS.length; i++) {
+          const [sx, sy] = STRAWBERRY_SEED_OFFSETS[i];
+          const ex = sx * (r / 28);
+          const ey = sy * (r / 28);
+          ctx.moveTo(ex + 1.5, ey);
+          ctx.ellipse(ex, ey, 1.5, 2.5, 0, 0, Math.PI * 2);
+        }
+        ctx.fill();
 
         // Green leaf cap
         ctx.fillStyle = '#388e3c';
@@ -248,21 +256,18 @@ export class GameRenderer {
         ctx.ellipse(0, 0, r * 0.85, r * 1.05, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Cross-hatching scales
+        // Cross-hatching scales (batched into single path)
         ctx.shadowBlur = 0;
         ctx.strokeStyle = '#bf360c';
         ctx.lineWidth = 1.8;
+        ctx.beginPath();
         for (let i = -2; i <= 2; i++) {
-          ctx.beginPath();
           ctx.moveTo(-r * 0.6, i * 16 - 15);
           ctx.lineTo(r * 0.6, i * 16 + 15);
-          ctx.stroke();
-
-          ctx.beginPath();
           ctx.moveTo(-r * 0.6, i * 16 + 15);
           ctx.lineTo(r * 0.6, i * 16 - 15);
-          ctx.stroke();
         }
+        ctx.stroke();
 
         // Green spiky crown
         ctx.fillStyle = '#2e7d32';
@@ -330,23 +335,29 @@ export class GameRenderer {
     ctx.lineTo(0, r);
     ctx.stroke();
 
-    // Exposed seeds along cut
+    // Exposed seeds along cut (batched into single path)
     if (half.type === 'watermelon') {
       ctx.fillStyle = '#212121';
       const dir = half.isLeft ? -1 : 1;
+      ctx.beginPath();
       for (let s = -2; s <= 2; s++) {
-        ctx.beginPath();
-        ctx.ellipse(dir * (r * 0.4), s * (r * 0.28), 2.5, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const ex = dir * (r * 0.4);
+        const ey = s * (r * 0.28);
+        ctx.moveTo(ex + 2.5, ey);
+        ctx.ellipse(ex, ey, 2.5, 4, 0, 0, Math.PI * 2);
       }
+      ctx.fill();
     } else if (half.type === 'orange') {
       ctx.fillStyle = '#fff9c4';
       const dir = half.isLeft ? -1 : 1;
+      ctx.beginPath();
       for (let s = -2; s <= 2; s++) {
-        ctx.beginPath();
-        ctx.arc(dir * (r * 0.35), s * (r * 0.3), 3, 0, Math.PI * 2);
-        ctx.fill();
+        const cx = dir * (r * 0.35);
+        const cy = s * (r * 0.3);
+        ctx.moveTo(cx + 3, cy);
+        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
       }
+      ctx.fill();
     }
 
     ctx.restore();

@@ -20,6 +20,8 @@ import { ParticleSystem } from './ParticleSystem';
 import { SoundManager } from '../audio/SoundManager';
 import { VoiceAction, VoiceActionResult } from '../voice/VoiceManager';
 
+const POWER_KEYS: readonly SpecialPower[] = ['slow_motion', 'double_score', 'bomb_mode'] as const;
+
 export interface GameEngineCallbacks {
   onStatsChange?: (stats: GameStats) => void;
   onStatusChange?: (status: GameStatus) => void;
@@ -100,6 +102,7 @@ export class GameEngine {
 
   // Popups
   private popups: PopupText[] = [];
+  private static nextPopupId = 1;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -197,11 +200,12 @@ export class GameEngine {
     };
 
     // Reset powers
-    (Object.keys(this.powers) as SpecialPower[]).forEach((p) => {
+    for (let i = 0; i < POWER_KEYS.length; i++) {
+      const p = POWER_KEYS[i];
       this.powers[p].active = false;
       this.powers[p].remainingTime = 0;
       this.powers[p].cooldownRemaining = 0;
-    });
+    }
 
     this.fruitManager.reset();
     this.particleSystem.reset();
@@ -553,7 +557,7 @@ export class GameEngine {
 
   private addPopup(text: string, x: number, y: number, color: string, scale = 1.0): void {
     this.popups.push({
-      id: `pop_${Date.now()}_${Math.random()}`,
+      id: `pop_${GameEngine.nextPopupId++}`,
       text,
       x: Math.max(40, Math.min(this.getWidth() - 40, x)),
       y: Math.max(40, y),
@@ -592,8 +596,8 @@ export class GameEngine {
     const isSlowMo = this.powers.slow_motion.active;
     const speedMultiplier = isSlowMo ? 0.35 : 1.0;
 
-    (Object.keys(this.powers) as SpecialPower[]).forEach((pKey) => {
-      const p = this.powers[pKey];
+    for (let i = 0; i < POWER_KEYS.length; i++) {
+      const p = this.powers[POWER_KEYS[i]];
       if (p.active) {
         p.remainingTime -= dt;
         if (p.remainingTime <= 0) {
@@ -610,7 +614,7 @@ export class GameEngine {
           powersChanged = true;
         }
       }
-    });
+    }
 
     if (powersChanged) {
       this.notifyPowers();

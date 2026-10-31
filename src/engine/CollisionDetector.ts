@@ -7,6 +7,13 @@ export interface SliceHit {
   distance: number;
 }
 
+const STATIC_MISS_HIT: Readonly<SliceHit> = Object.freeze({
+  hit: false,
+  sliceAngle: 0,
+  hitPoint: Object.freeze({ x: 0, y: 0 }),
+  distance: Infinity,
+});
+
 export class CollisionDetector {
   /**
    * Tests whether a line segment from p1 to p2 intersects with a circle at (cx, cy) with radius r.
@@ -36,14 +43,13 @@ export class CollisionDetector {
     }
 
     const distSq = (closestX - cx) * (closestX - cx) + (closestY - cy) * (closestY - cy);
-    const hit = distSq <= radius * radius;
-
-    // Slice angle in radians
-    const sliceAngle = Math.atan2(dy, dx);
+    if (distSq > radius * radius) {
+      return STATIC_MISS_HIT;
+    }
 
     return {
-      hit,
-      sliceAngle,
+      hit: true,
+      sliceAngle: Math.atan2(dy, dx),
       hitPoint: { x: closestX, y: closestY },
       distance: Math.sqrt(distSq),
     };
@@ -60,16 +66,16 @@ export class CollisionDetector {
     minDistanceThreshold = 8
   ): SliceHit {
     if (fruit.isSliced) {
-      return { hit: false, sliceAngle: 0, hitPoint: { x: 0, y: 0 }, distance: Infinity };
+      return STATIC_MISS_HIT;
     }
 
     // Require a minimal swipe length to prevent stationary cut glitches
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
-    const moveDist = Math.sqrt(dx * dx + dy * dy);
+    const distSq = dx * dx + dy * dy;
 
-    if (moveDist < minDistanceThreshold) {
-      return { hit: false, sliceAngle: 0, hitPoint: { x: 0, y: 0 }, distance: Infinity };
+    if (distSq < minDistanceThreshold * minDistanceThreshold) {
+      return STATIC_MISS_HIT;
     }
 
     return this.testSegmentCircle(p1, p2, fruit.x, fruit.y, fruit.radius);
@@ -85,15 +91,15 @@ export class CollisionDetector {
     minDistanceThreshold = 8
   ): SliceHit {
     if (bomb.isDetonated) {
-      return { hit: false, sliceAngle: 0, hitPoint: { x: 0, y: 0 }, distance: Infinity };
+      return STATIC_MISS_HIT;
     }
 
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
-    const moveDist = Math.sqrt(dx * dx + dy * dy);
+    const distSq = dx * dx + dy * dy;
 
-    if (moveDist < minDistanceThreshold) {
-      return { hit: false, sliceAngle: 0, hitPoint: { x: 0, y: 0 }, distance: Infinity };
+    if (distSq < minDistanceThreshold * minDistanceThreshold) {
+      return STATIC_MISS_HIT;
     }
 
     return this.testSegmentCircle(p1, p2, bomb.x, bomb.y, bomb.radius);

@@ -445,23 +445,26 @@ export class GameEngine {
       this.lastWhooshTime = now;
     }
 
+    // Dynamic blade margin to prevent tunneling on high-speed swipes
+    const bladeMargin = swipeDist > 50 ? 6 : 4;
+
     // 1. Check fruits
     for (let i = 0; i < this.fruitManager.fruits.length; i++) {
       const fruit = this.fruitManager.fruits[i];
       if (fruit.isSliced) continue;
 
-      const hit = CollisionDetector.checkFruitSlice(fruit, p1, p2);
+      const hit = CollisionDetector.checkFruitSlice(fruit, p1, p2, 8, bladeMargin);
       if (hit.hit) {
         this.handleFruitSliced(fruit, hit.sliceAngle, hit.hitPoint);
       }
     }
 
-    // 2. Check bombs
+    // 2. Check bombs (strict margin to keep bomb hits fair to the player)
     for (let i = 0; i < this.fruitManager.bombs.length; i++) {
       const bomb = this.fruitManager.bombs[i];
       if (bomb.isDetonated) continue;
 
-      const hit = CollisionDetector.checkBombSlice(bomb, p1, p2);
+      const hit = CollisionDetector.checkBombSlice(bomb, p1, p2, 8, 0);
       if (hit.hit) {
         this.handleBombSliced(bomb, hit.hitPoint);
       }

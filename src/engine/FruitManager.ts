@@ -49,11 +49,11 @@ export class FruitManager {
     
     // vy = -sqrt(2 * g * h)
     const vy = -Math.sqrt(2 * gravity * heightDifference);
+    const timeToApex = Math.max(0.4, Math.sqrt((2 * heightDifference) / gravity));
 
-    // Aim horizontal velocity toward center
-    const screenCenter = this.width / 2;
-    const directionToCenter = (screenCenter - x) / this.width; // -0.5 to 0.5
-    const vx = directionToCenter * (120 + Math.random() * 200) + (Math.random() - 0.5) * 60;
+    // Target horizontal position near center at apex for balanced screen coverage
+    const targetX = this.width * (0.32 + Math.random() * 0.36);
+    const vx = (targetX - x) / timeToApex + (Math.random() - 0.5) * 25;
 
     const rotationSpeed = (Math.random() - 0.5) * 5.0;
 
@@ -93,10 +93,10 @@ export class FruitManager {
     const gravity = GAME_CONSTANTS.GRAVITY;
     const heightDifference = y - targetApexY;
     const vy = -Math.sqrt(2 * gravity * heightDifference);
+    const timeToApex = Math.max(0.4, Math.sqrt((2 * heightDifference) / gravity));
 
-    const screenCenter = this.width / 2;
-    const directionToCenter = (screenCenter - x) / this.width;
-    const vx = directionToCenter * (100 + Math.random() * 140);
+    const targetX = this.width * (0.35 + Math.random() * 0.3);
+    const vx = (targetX - x) / timeToApex;
 
     const bomb: Bomb = {
       id: `b_${FruitManager.nextBombId++}`,
@@ -228,6 +228,7 @@ export class FruitManager {
       f.x += f.vx * effectiveDt;
       f.y += f.vy * effectiveDt;
       f.vy += gravity * effectiveDt;
+      f.vx *= Math.max(0, 1 - 0.08 * effectiveDt);
       f.rotation += f.rotationSpeed * effectiveDt;
 
       // Check if dropped below bottom of canvas
@@ -250,6 +251,7 @@ export class FruitManager {
       b.x += b.vx * effectiveDt;
       b.y += b.vy * effectiveDt;
       b.vy += gravity * effectiveDt;
+      b.vx *= Math.max(0, 1 - 0.08 * effectiveDt);
       b.rotation += b.rotationSpeed * effectiveDt;
       b.fuseTimer += effectiveDt;
 

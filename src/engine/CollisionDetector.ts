@@ -17,13 +17,15 @@ const STATIC_MISS_HIT: Readonly<SliceHit> = Object.freeze({
 export class CollisionDetector {
   /**
    * Tests whether a line segment from p1 to p2 intersects with a circle at (cx, cy) with radius r.
+   * Supports an optional bladeRadius to account for slicing edge width.
    */
   public static testSegmentCircle(
     p1: Point2D,
     p2: Point2D,
     cx: number,
     cy: number,
-    radius: number
+    radius: number,
+    bladeRadius = 0
   ): SliceHit {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
@@ -43,7 +45,8 @@ export class CollisionDetector {
     }
 
     const distSq = (closestX - cx) * (closestX - cx) + (closestY - cy) * (closestY - cy);
-    if (distSq > radius * radius) {
+    const effectiveRadius = radius + bladeRadius;
+    if (distSq > effectiveRadius * effectiveRadius) {
       return STATIC_MISS_HIT;
     }
 
@@ -63,7 +66,8 @@ export class CollisionDetector {
     fruit: Fruit,
     p1: Point2D,
     p2: Point2D,
-    minDistanceThreshold = 8
+    minDistanceThreshold = 8,
+    bladeRadius = 0
   ): SliceHit {
     if (fruit.isSliced) {
       return STATIC_MISS_HIT;
@@ -78,7 +82,7 @@ export class CollisionDetector {
       return STATIC_MISS_HIT;
     }
 
-    return this.testSegmentCircle(p1, p2, fruit.x, fruit.y, fruit.radius);
+    return this.testSegmentCircle(p1, p2, fruit.x, fruit.y, fruit.radius, bladeRadius);
   }
 
   /**
@@ -88,7 +92,8 @@ export class CollisionDetector {
     bomb: Bomb,
     p1: Point2D,
     p2: Point2D,
-    minDistanceThreshold = 8
+    minDistanceThreshold = 8,
+    bladeRadius = 0
   ): SliceHit {
     if (bomb.isDetonated) {
       return STATIC_MISS_HIT;
@@ -102,6 +107,6 @@ export class CollisionDetector {
       return STATIC_MISS_HIT;
     }
 
-    return this.testSegmentCircle(p1, p2, bomb.x, bomb.y, bomb.radius);
+    return this.testSegmentCircle(p1, p2, bomb.x, bomb.y, bomb.radius, bladeRadius);
   }
 }

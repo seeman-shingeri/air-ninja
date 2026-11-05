@@ -137,4 +137,17 @@ describe('CollisionDetector', () => {
     const secondHit = CollisionDetector.checkBombSlice(bomb, p1, p2);
     expect(secondHit.hit).toBe(false);
   });
+
+  it('supports bladeRadius margin for edge slicing accuracy', () => {
+    // Circle at (100, 100) with radius 20. Segment passes at y = 124 (dist = 24 > 20, but <= 20 + 5)
+    const p1 = { x: 50, y: 124 };
+    const p2 = { x: 150, y: 124 };
+
+    const miss = CollisionDetector.testSegmentCircle(p1, p2, 100, 100, 20, 0);
+    expect(miss.hit).toBe(false);
+
+    const hit = CollisionDetector.testSegmentCircle(p1, p2, 100, 100, 20, 5);
+    expect(hit.hit).toBe(true);
+    expect(hit.distance).toBeCloseTo(24);
+  });
 });

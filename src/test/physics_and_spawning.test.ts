@@ -16,6 +16,9 @@ describe('FruitManager and Physics', () => {
     expect(fruit.x).toBeLessThanOrEqual(850);
     // Initial vy is negative (directed upwards)
     expect(fruit.vy).toBeLessThan(0);
+
+    const slotted = manager.spawnFruit('apple', 500);
+    expect(slotted.x).toBe(500);
   });
 
   it('splits a sliced fruit into two halves with outward separating velocities', () => {

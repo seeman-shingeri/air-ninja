@@ -32,14 +32,14 @@ export class FruitManager {
   /**
    * Spawns a new fruit with parabolic trajectory calculated to arc across screen
    */
-  public spawnFruit(specificType?: FruitType): Fruit {
+  public spawnFruit(specificType?: FruitType, customX?: number): Fruit {
     const type = specificType || this.fruitTypes[Math.floor(Math.random() * this.fruitTypes.length)];
     const def = FRUIT_DEFINITIONS[type];
 
     // Spawn between 15% and 85% of screen width
     const minX = this.width * 0.15;
     const maxX = this.width * 0.85;
-    const x = minX + Math.random() * (maxX - minX);
+    const x = customX !== undefined ? Math.max(minX, Math.min(maxX, customX)) : minX + Math.random() * (maxX - minX);
     const y = this.height + def.radius + 10;
 
     // Desired apex height between 18% and 45% from top
@@ -199,10 +199,21 @@ export class FruitManager {
         this.spawnBomb();
       }
 
-      // Spawn 1 to 3 fruits in a wave
+      // Spawn 1 to 3 fruits in a wave with consistent spatial separation
+      const minX = this.width * 0.15;
+      const maxX = this.width * 0.85;
       const waveCount = Math.random() < 0.25 ? 2 : Math.random() < 0.08 ? 3 : 1;
+      const slotWidth = (maxX - minX) / waveCount;
+      let lastType: FruitType | null = null;
       for (let i = 0; i < waveCount; i++) {
-        this.spawnFruit();
+        const slotX = minX + (i + 0.2 + Math.random() * 0.6) * slotWidth;
+        let nextType: FruitType | undefined;
+        if (waveCount > 1) {
+          const available = this.fruitTypes.filter((t) => t !== lastType);
+          nextType = available[Math.floor(Math.random() * available.length)];
+          lastType = nextType;
+        }
+        this.spawnFruit(nextType, slotX);
       }
     }
 

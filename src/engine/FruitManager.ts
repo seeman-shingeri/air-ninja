@@ -129,6 +129,8 @@ export class FruitManager {
 
     const splitSpeed = 120 + Math.random() * 60;
 
+    const spinImpulse = 3.2 + Math.random() * 1.8;
+
     const half1: FruitHalf = {
       x: fruit.x + normalX * 6,
       y: fruit.y + normalY * 6,
@@ -136,7 +138,7 @@ export class FruitManager {
       vy: fruit.vy + normalY * splitSpeed - 40,
       radius: fruit.radius,
       rotation: fruit.rotation,
-      rotationSpeed: fruit.rotationSpeed - 2.5,
+      rotationSpeed: fruit.rotationSpeed - spinImpulse,
       sliceAngle,
       type: fruit.type,
       skinColor: fruit.skinColor,
@@ -153,7 +155,7 @@ export class FruitManager {
       vy: fruit.vy - normalY * splitSpeed - 40,
       radius: fruit.radius,
       rotation: fruit.rotation,
-      rotationSpeed: fruit.rotationSpeed + 2.5,
+      rotationSpeed: fruit.rotationSpeed + spinImpulse,
       sliceAngle,
       type: fruit.type,
       skinColor: fruit.skinColor,
@@ -267,7 +269,10 @@ export class FruitManager {
       h.y += h.vy * effectiveDt;
       h.vy += gravity * effectiveDt;
       h.rotation += h.rotationSpeed * effectiveDt;
-      h.alpha -= 0.75 * effectiveDt;
+      // Maintain crisp visibility on cut burst; fade smoothly as half descends
+      if (h.vy > 0) {
+        h.alpha -= 0.85 * effectiveDt;
+      }
 
       if (h.alpha <= 0 || h.y > this.height + h.radius + 40) {
         this.slicedHalves.splice(i, 1);

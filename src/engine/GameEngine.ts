@@ -214,6 +214,20 @@ export class GameEngine {
     this.popups = [];
     this.lastFrameTime = performance.now();
 
+    // Visual countdown sequence before first fruit wave
+    const cx = this.getWidth() / 2;
+    const cy = this.getHeight() / 2;
+    this.addPopup('3', cx, cy, '#00e5ff', 2.0);
+    setTimeout(() => {
+      if (this.status === 'playing') this.addPopup('2', cx, cy, '#00e5ff', 2.0);
+    }, 380);
+    setTimeout(() => {
+      if (this.status === 'playing') this.addPopup('1', cx, cy, '#ffd700', 2.2);
+    }, 760);
+    setTimeout(() => {
+      if (this.status === 'playing') this.addPopup('SLICE!', cx, cy, '#ff1744', 2.5);
+    }, 1140);
+
     this.notifyStats();
     this.notifyPowers();
     if (this.callbacks.onStatusChange) {
@@ -239,6 +253,7 @@ export class GameEngine {
     if (this.status === 'paused') {
       this.status = 'playing';
       this.lastFrameTime = performance.now();
+      this.addPopup('RESUME!', this.getWidth() / 2, this.getHeight() / 2, '#00e5ff', 1.8);
       if (this.callbacks.onStatusChange) {
         this.callbacks.onStatusChange('playing');
       }

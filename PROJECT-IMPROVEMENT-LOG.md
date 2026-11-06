@@ -9,4 +9,5 @@
 | 5 | Improve fruit splitting animations and descent fade | `src/engine/FruitManager.ts` | Completed | 47/47 unit tests passing | Passing | `27db7a7` | Pushed |
 | 6 | Improve combo scoring logic and window expiration | `src/engine/GameEngine.ts` | Completed | 47/47 unit tests passing | Passing | `e25274a` | Pushed |
 | 7 | Add clear game-over transition and high-score badge | `src/components/GameOverModal.tsx`, `src/engine/GameEngine.ts` | Completed | 47/47 unit tests passing | Passing | `8f57d83` | Pushed |
-| 8 | Add quick restart options in HUD and pause menu | `src/components/HUD.tsx`, `src/components/AirNinjaGame.tsx` | Completed | 47/47 unit tests passing | Passing | `PENDING` | Pushed |
+| 8 | Add quick restart options in HUD and pause menu | `src/components/HUD.tsx`, `src/components/AirNinjaGame.tsx` | Completed | 47/47 unit tests passing | Passing | `b461c81` | Pushed |
+| 9 | Add countdown sequence and resume indicator | `src/engine/GameEngine.ts` | Completed | 47/47 unit tests passing | Passing | `PENDING` | Pushed |

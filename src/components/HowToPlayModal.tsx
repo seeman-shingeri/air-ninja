@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Hand, Mic, Bomb, Zap, Keyboard } from 'lucide-react';
 
 interface HowToPlayModalProps {
@@ -6,6 +6,13 @@ interface HowToPlayModalProps {
 }
 
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   return (
     <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-6 text-white select-none">
       <div className="w-full max-w-2xl max-h-[85vh] rounded-3xl bg-gradient-to-b from-[#101726] to-[#080d18] border border-cyan-500/30 p-6 md:p-8 shadow-[0_0_50px_rgba(0,229,255,0.2)] flex flex-col overflow-hidden">
@@ -40,6 +47,9 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
                 Position your webcam so your hand is clearly visible. Raise your <strong>index finger</strong> like a blade. Move your fingertip quickly through flying fruits to slice them in half!
                 <br />
                 <span className="text-gray-400">Mouse/Touch fallback is always available if your webcam is off.</span>
+                <br />
+                <span className="text-cyan-400 font-semibold text-[11px]">Pro-tip:</span>{' '}
+                <span className="text-gray-400 text-[11px]">Stay 1.5–3 ft from your camera in good lighting for ultra-smooth tracking.</span>
               </p>
             </div>
           </div>
@@ -51,7 +61,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h3 className="text-sm font-bold text-purple-300 uppercase tracking-wide">
-                2. Voice Command Powers
+                2. Voice Command Powers & Fruit Calling
               </h3>
               <p className="text-xs text-gray-300 mt-1 leading-relaxed">
                 Activate ninja powers by speaking aloud into your microphone:
@@ -73,10 +83,18 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
               <p className="text-[11px] text-gray-400 mt-2">
                 Manual buttons (hotkeys 1, 2, 3) are also on screen.
               </p>
-              <p className="text-xs text-gray-300 mt-2 leading-relaxed">
-                <strong className="text-cyan-300">Voice Slice:</strong> shout a fruit&apos;s name, like
-                &quot;Watermelon!&quot; or &quot;Banana!&quot;, to instantly cut that fruit on screen.
-              </p>
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  <strong className="text-cyan-300">Voice Slice:</strong> Speak any active fruit name to slice it instantly without touching:
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {['Watermelon', 'Apple', 'Banana', 'Orange', 'Strawberry', 'Pineapple', 'Mango', 'Grapes'].map((fruit) => (
+                    <span key={fruit} className="px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[10px] text-cyan-300 font-semibold">
+                      &quot;{fruit}&quot;
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -117,6 +135,9 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ onClose }) => {
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 <span className="px-2 py-1 rounded bg-black/50 border border-white/10 font-mono">
                   Esc / P: Pause
+                </span>
+                <span className="px-2 py-1 rounded bg-black/50 border border-white/10 font-mono">
+                  R: Quick Restart
                 </span>
                 <span className="px-2 py-1 rounded bg-black/50 border border-white/10 font-mono">
                   1: Slow Mo

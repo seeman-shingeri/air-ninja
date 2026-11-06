@@ -475,6 +475,8 @@ export const AirNinjaGame: React.FC = () => {
         handleTriggerPower('bomb_mode');
       } else if (e.key === 'm' || e.key === 'M') {
         handleToggleMute();
+      } else if ((e.key === 'r' || e.key === 'R') && (gameStatus === 'playing' || gameStatus === 'paused' || gameStatus === 'game_over')) {
+        handleRestart();
       } else if (e.code === 'Space' && gameStatus === 'game_over') {
         handleRestart();
       }

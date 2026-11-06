@@ -22,6 +22,15 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const [savedRank, setSavedRank] = useState<number | null>(null);
   const [isSaved, setIsSaved] = useState(false);
 
+  const isNewHighScore = React.useMemo(() => {
+    try {
+      const existing = LeaderboardStorage.getScores(mode);
+      return stats.score > 0 && (existing.length === 0 || stats.score > existing[0].score);
+    } catch {
+      return false;
+    }
+  }, [mode, stats.score]);
+
   const handleSaveScore = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaved) return;
@@ -40,8 +49,15 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-6 text-white select-none">
-      <div className="w-full max-w-lg rounded-3xl bg-gradient-to-b from-[#101726] to-[#080d18] border border-cyan-500/30 p-6 md:p-8 shadow-[0_0_50px_rgba(0,229,255,0.2)] flex flex-col items-center text-center">
+    <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-6 text-white select-none transition-all duration-300 animate-in fade-in">
+      <div className="w-full max-w-lg rounded-3xl bg-gradient-to-b from-[#101726] to-[#080d18] border border-cyan-500/30 p-6 md:p-8 shadow-[0_0_50px_rgba(0,229,255,0.2)] flex flex-col items-center text-center transition-transform duration-300 animate-in zoom-in-95">
+        {/* New High Score Badge */}
+        {isNewHighScore && (
+          <div className="mb-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-bold flex items-center gap-1.5 animate-pulse">
+            <Trophy size={14} className="text-amber-400" /> NEW HIGH SCORE!
+          </div>
+        )}
+
         {/* Banner */}
         <span className="text-xs font-bold tracking-widest uppercase text-cyan-400 mb-1">
           {mode.toUpperCase()} ROUND COMPLETE

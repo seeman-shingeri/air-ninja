@@ -497,12 +497,14 @@ export class GameEngine {
     }
     this.lastSliceTimestamp = now;
 
-    // Combo multiplier
+    // Combo multiplier & bonus
     let multiplier = 1;
+    let comboBonus = 0;
     if (this.stats.comboCount >= 3) {
       multiplier = Math.min(5, this.stats.comboCount - 1);
+      comboBonus = this.stats.comboCount;
       this.soundManager.playCombo(multiplier);
-      this.addPopup(`COMBO x${multiplier}!`, hitPoint.x, hitPoint.y - 20, '#ffd700', 1.3);
+      this.addPopup(`COMBO x${multiplier} (+${comboBonus})!`, hitPoint.x, hitPoint.y - 20, '#ffd700', 1.35);
     }
     this.stats.comboMultiplier = multiplier;
     if (this.stats.comboCount > this.stats.maxCombo) {
@@ -511,7 +513,7 @@ export class GameEngine {
 
     // 5. Score calculation (apply double score power if active)
     const powerMultiplier = this.powers.double_score.active ? 2 : 1;
-    const gainedPoints = fruit.points * multiplier * powerMultiplier;
+    const gainedPoints = (fruit.points * multiplier + comboBonus) * powerMultiplier;
     this.stats.score += gainedPoints;
     this.stats.totalSlices++;
     this.stats.fruitBreakdown[fruit.type]++;
@@ -667,6 +669,13 @@ export class GameEngine {
     }
     if (expiredTrailCount > 0) {
       this.trail.splice(0, expiredTrailCount);
+    }
+
+    // 7. Expire inactive combo streak
+    if (this.stats.comboCount > 0 && now - this.lastSliceTimestamp > GAME_CONSTANTS.COMBO_WINDOW_MS) {
+      this.stats.comboCount = 0;
+      this.stats.comboMultiplier = 1;
+      this.notifyStats();
     }
   }
 

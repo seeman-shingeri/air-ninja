@@ -15,6 +15,7 @@ import { GameOverModal } from './GameOverModal';
 import { HowToPlayModal } from './HowToPlayModal';
 import { SettingsModal } from './SettingsModal';
 import { LeaderboardModal } from './LeaderboardModal';
+import { RotateCcw } from 'lucide-react';
 
 export const AirNinjaGame: React.FC = () => {
   // DOM Refs
@@ -524,6 +525,7 @@ export const AirNinjaGame: React.FC = () => {
             mode={gameMode}
             isPaused={gameStatus === 'paused'}
             onTogglePause={handleTogglePause}
+            onRestart={handleRestart}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             voiceStatus={voiceStatus}
@@ -542,18 +544,24 @@ export const AirNinjaGame: React.FC = () => {
             <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-white text-center">
               <h2 className="text-4xl sm:text-5xl font-black text-cyan-300 tracking-wider">GAME PAUSED</h2>
               <p className="text-xs text-gray-400 mt-2">Tap Resume or press Esc</p>
-              <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-xs">
+              <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-sm">
                 <button
                   onClick={handleTogglePause}
-                  className="w-full py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold text-sm uppercase tracking-wider transition-all active:scale-95 shadow-lg"
+                  className="flex-1 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold text-sm uppercase tracking-wider transition-all active:scale-95 shadow-lg"
                 >
                   Resume Playing
                 </button>
                 <button
-                  onClick={handleExitToMenu}
-                  className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm uppercase tracking-wider transition-all active:scale-95"
+                  onClick={handleRestart}
+                  className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  Exit to Menu
+                  <RotateCcw size={15} /> Restart
+                </button>
+                <button
+                  onClick={handleExitToMenu}
+                  className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm uppercase tracking-wider transition-all active:scale-95"
+                >
+                  Exit
                 </button>
               </div>
             </div>

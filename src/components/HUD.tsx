@@ -1,13 +1,14 @@
 import React from 'react';
 import { GameMode, GameStats } from '../types';
 import { VoiceStatus } from '../voice/VoiceManager';
-import { Heart, Pause, Play, Volume2, VolumeX, Mic, MicOff, Camera, VideoOff, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Heart, Pause, Play, Volume2, VolumeX, Mic, MicOff, Camera, VideoOff, Sparkles, AlertCircle, RefreshCw, RotateCcw } from 'lucide-react';
 
 interface HUDProps {
   stats: GameStats;
   mode: GameMode;
   isPaused: boolean;
   onTogglePause: () => void;
+  onRestart?: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
   voiceStatus: VoiceStatus;
@@ -24,6 +25,7 @@ export const HUD: React.FC<HUDProps> = ({
   mode,
   isPaused,
   onTogglePause,
+  onRestart,
   isMuted,
   onToggleMute,
   voiceStatus,
@@ -193,6 +195,18 @@ export const HUD: React.FC<HUDProps> = ({
         >
           {isPaused ? <Play size={16} /> : <Pause size={16} />}
         </button>
+
+        {/* Quick Restart Button */}
+        {onRestart && (
+          <button
+            onClick={onRestart}
+            aria-label="Restart Round"
+            title="Restart Round"
+            className="p-1.5 sm:p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 hover:border-white/20 text-white backdrop-blur-md transition-all active:scale-95"
+          >
+            <RotateCcw size={16} />
+          </button>
+        )}
 
         {/* Exit Button */}
         <button

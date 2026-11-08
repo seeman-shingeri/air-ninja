@@ -157,4 +157,13 @@ describe('CoordinateMapper and OneEuroFilter', () => {
     expect(target.x).toBeGreaterThan(150);
     expect(target.y).toBeGreaterThan(250);
   });
+
+  it('re-anchors cleanly without rubber-banding after tracking gaps > 250ms', () => {
+    const smoother = new Point2DSmoother();
+    smoother.filter(100, 100, 1000);
+    // Sudden gap of 500ms and hand appears at (500, 500)
+    const afterGap = smoother.filter(500, 500, 1500);
+    expect(afterGap.x).toBe(500);
+    expect(afterGap.y).toBe(500);
+  });
 });

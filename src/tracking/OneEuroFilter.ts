@@ -102,7 +102,7 @@ export class Point2DSmoother {
 
   private static alpha(cutoff: number, dt: number): number {
     const tau = 1.0 / (2 * Math.PI * cutoff);
-    return 1.0 / (1.0 + tau / dt);
+    return Math.min(1.0, Math.max(0.0, 1.0 / (1.0 + tau / dt)));
   }
 
   public filterTo<T extends { x: number; y: number }>(
@@ -111,7 +111,8 @@ export class Point2DSmoother {
     out: T,
     timestamp = performance.now()
   ): T {
-    if (this.x === null || this.y === null || this.lastTime === null) {
+    // Re-anchor if uninitialized or if tracking paused/dropped for >250ms to prevent rubber-banding
+    if (this.x === null || this.y === null || this.lastTime === null || timestamp - this.lastTime > 250) {
       this.x = this.rawX = x;
       this.y = this.rawY = y;
       this.speed = 0;
@@ -121,7 +122,7 @@ export class Point2DSmoother {
       return out;
     }
 
-    const dt = Math.max(1e-4, (timestamp - this.lastTime) / 1000);
+    const dt = Math.max(1e-4, Math.min(0.25, (timestamp - this.lastTime) / 1000));
     this.lastTime = timestamp;
 
     const rawSpeed = Math.hypot(x - this.rawX, y - this.rawY) / dt;

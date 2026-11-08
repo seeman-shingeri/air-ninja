@@ -118,8 +118,11 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
         {cameraStatus === 'requesting' && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center gap-3">
             <RefreshCw className="animate-spin text-cyan-400" size={36} />
-            <p className="text-sm font-bold text-cyan-200">Requesting camera access...</p>
-            <p className="text-xs text-gray-400">Please tap &quot;Allow&quot; in your browser</p>
+            <p className="text-sm font-bold text-cyan-200">Connecting to webcam...</p>
+            <p className="text-xs text-gray-400">Please tap &quot;Allow&quot; if prompted by your browser</p>
+            <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1">
+              <div className="h-full bg-cyan-400 rounded-full animate-pulse w-3/5" />
+            </div>
           </div>
         )}
 
@@ -164,10 +167,13 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
         )}
 
         {cameraStatus === 'ready' && trackerStatus === 'loading' && (
-          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="animate-spin text-cyan-400" size={40} />
-            <p className="text-sm font-medium text-cyan-200">Loading hand tracking model...</p>
-            <p className="text-xs text-gray-400">First load downloads a few MB and can take a moment</p>
+          <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center gap-3 p-4 text-center">
+            <RefreshCw className="animate-spin text-cyan-400" size={38} />
+            <p className="text-sm font-bold text-cyan-200">Preparing MediaPipe Vision AI...</p>
+            <p className="text-xs text-gray-400 max-w-xs">Initializing index fingertip tracking and landmark models</p>
+            <div className="w-52 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1">
+              <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-pulse w-4/5" />
+            </div>
           </div>
         )}
 

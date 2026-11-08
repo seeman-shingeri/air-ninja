@@ -102,4 +102,63 @@ describe('Lifecycle, Camera Cleanup, and Safety Bounds', () => {
       configurable: true,
     });
   });
+
+  it('handles track disconnection gracefully when camera track ends', async () => {
+    let status = '';
+    let message = '';
+
+    const listeners: Record<string, () => void> = {};
+    const mockTrack = {
+      stop: vi.fn(),
+      kind: 'video',
+      addEventListener: vi.fn((event: string, cb: () => void) => {
+        listeners[event] = cb;
+      }),
+    };
+
+    const mockStream = {
+      getTracks: () => [mockTrack],
+      getVideoTracks: () => [mockTrack],
+    } as unknown as MediaStream;
+
+    const mockVideo = {
+      readyState: 4,
+      videoWidth: 640,
+      play: vi.fn().mockResolvedValue(undefined),
+      srcObject: null,
+    } as unknown as HTMLVideoElement;
+
+    const manager = new CameraManager({
+      videoElement: mockVideo,
+      onStatusChange: (s, m) => {
+        status = s;
+        message = m || '';
+      },
+    });
+
+    const originalMediaDevices = navigator.mediaDevices;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mockStream),
+      },
+      configurable: true,
+    });
+
+    const started = await manager.startCamera();
+    expect(started).toBe(true);
+
+    // Trigger track disconnection event
+    if (listeners['ended']) {
+      listeners['ended']();
+    }
+
+    expect(status).toBe('error');
+    expect(message).toContain('disconnected');
+    expect(manager.getStream()).toBeNull();
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: originalMediaDevices,
+      configurable: true,
+    });
+  });
 });

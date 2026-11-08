@@ -15,4 +15,5 @@
 | 11 | Improve fingertip coordinate smoothing and gap re-anchoring | `src/tracking/OneEuroFilter.ts`, `src/test/coordinate_mapper_and_filter.test.ts` | Completed | 48/48 unit tests passing | Passing | `35f9c1a` | Pushed |
 | 12 | Improve camera initialization error handling and constraint fallbacks | `src/tracking/CameraManager.ts`, `src/test/lifecycle_and_camera.test.ts` | Completed | 49/49 unit tests passing | Passing | `59f33ce` | Pushed |
 | 13 | Add clear camera permission recovery guidance | `src/components/CalibrationOverlay.tsx` | Completed | 49/49 unit tests passing | Passing | `32a7e76` | Pushed |
-| 14 | Improve camera and AI vision model loading feedback | `src/components/CalibrationOverlay.tsx` | Completed | 49/49 unit tests passing | Passing | `PENDING` | Pushed |
+| 14 | Improve camera and AI vision model loading feedback | `src/components/CalibrationOverlay.tsx` | Completed | 49/49 unit tests passing | Passing | `4b2302d` | Pushed |
+| 15 | Handle camera hardware disconnection gracefully | `src/tracking/CameraManager.ts`, `src/test/lifecycle_and_camera.test.ts` | Completed | 50/50 unit tests passing | Passing | `PENDING` | Pushed |

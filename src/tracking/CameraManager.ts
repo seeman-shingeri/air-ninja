@@ -122,7 +122,19 @@ export class CameraManager {
       }
 
       this.stream = stream;
-      this.video.srcObject = stream;
+      if (this.video) {
+        this.video.srcObject = stream;
+      }
+
+      // Safe camera disconnection handling
+      stream.getVideoTracks().forEach((track) => {
+        track.addEventListener('ended', () => {
+          if (!this.isCleanedUp) {
+            this.setStatus('error', 'Camera device was disconnected. Switching to Touch blade.');
+            this.stopCamera();
+          }
+        });
+      });
 
       // Await video metadata and play
       await new Promise<void>((resolve, reject) => {

@@ -131,9 +131,21 @@ export const CalibrationOverlay: React.FC<CalibrationOverlayProps> = ({
           <div className="absolute inset-0 bg-black/90 p-5 flex flex-col items-center justify-center gap-3 text-center">
             <AlertCircle className="text-red-400" size={42} />
             <div className="max-w-sm">
-              <h3 className="text-base font-bold text-red-300">Camera Unavailable</h3>
+              <h3 className="text-base font-bold text-red-300">
+                {cameraStatus === 'permission_denied' ? 'Camera Permission Denied' : 'Camera Unavailable'}
+              </h3>
               <p className="text-xs text-gray-300 mt-1">{errorMessage || 'Could not access camera feed.'}</p>
             </div>
+
+            {cameraStatus === 'permission_denied' && (
+              <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-[11px] text-gray-300 text-left max-w-sm mt-1">
+                <span className="font-bold text-red-300 block mb-0.5">How to allow camera access:</span>
+                1. Click the site settings / tune / lock icon in your browser URL bar.<br />
+                2. Set &quot;Camera&quot; to &quot;Allow&quot;.<br />
+                3. Click &quot;Retry Camera&quot; below or continue with Touch blade.
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-2 mt-2 w-full max-w-xs">
               <button
                 onClick={onRetryCamera}

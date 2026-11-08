@@ -59,6 +59,11 @@ export class CameraManager {
    * Initializes webcam with mobile-optimized resolution and ultra-low latency constraints
    */
   public async startCamera(): Promise<boolean> {
+    if (typeof window !== 'undefined' && window.isSecureContext === false && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      this.setStatus('unsupported', 'Camera access requires a secure HTTPS connection.');
+      return false;
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.setStatus('unsupported', 'Camera access (getUserMedia) is not supported in this browser or context.');
       return false;
@@ -71,15 +76,17 @@ export class CameraManager {
 
     this.setStatus('requesting');
 
-    if (!this.video) {
+    if (!this.video && typeof document !== 'undefined') {
       this.video = document.createElement('video');
     }
 
-    this.video.autoplay = true;
-    this.video.muted = true;
-    this.video.playsInline = true;
-    this.video.setAttribute('playsinline', 'true');
-    this.video.setAttribute('webkit-playsinline', 'true');
+    if (this.video) {
+      this.video.autoplay = true;
+      this.video.muted = true;
+      this.video.playsInline = true;
+      this.video.setAttribute?.('playsinline', 'true');
+      this.video.setAttribute?.('webkit-playsinline', 'true');
+    }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -161,6 +168,12 @@ export class CameraManager {
       } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
         status = 'busy';
         message = 'Camera is in use by another app or system permissions are blocking it.';
+      } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+        status = 'error';
+        message = 'Camera does not support requested resolution or frame rate constraints. Try touch blade mode.';
+      } else if (error.name === 'AbortError') {
+        status = 'error';
+        message = 'Camera access was aborted by device or browser.';
       } else if (error.message === 'CAMERA_TIMEOUT') {
         status = 'timeout';
         message = 'Camera initialization timed out. Tap retry or play with touch.';

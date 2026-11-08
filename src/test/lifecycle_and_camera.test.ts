@@ -56,4 +56,50 @@ describe('Lifecycle, Camera Cleanup, and Safety Bounds', () => {
     ps.reset();
     expect(pool.every((p) => !p.active)).toBe(true);
   });
+
+  it('maps OverconstrainedError to actionable camera status message', async () => {
+    let receivedStatus = '';
+    let receivedMessage = '';
+
+    const mockVideo = {
+      autoplay: true,
+      muted: true,
+      playsInline: true,
+      setAttribute: vi.fn(),
+      play: vi.fn().mockResolvedValue(undefined),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      readyState: 4,
+      videoWidth: 640,
+    } as unknown as HTMLVideoElement;
+
+    const manager = new CameraManager({
+      videoElement: mockVideo,
+      onStatusChange: (status, msg) => {
+        receivedStatus = status;
+        receivedMessage = msg || '';
+      },
+    });
+
+    const originalMediaDevices = navigator.mediaDevices;
+    const overconstrainedErr = new Error('Constraint not satisfied');
+    overconstrainedErr.name = 'OverconstrainedError';
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: vi.fn().mockRejectedValue(overconstrainedErr),
+      },
+      configurable: true,
+    });
+
+    const success = await manager.startCamera();
+    expect(success).toBe(false);
+    expect(receivedStatus).toBe('error');
+    expect(receivedMessage).toContain('Camera does not support requested resolution');
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: originalMediaDevices,
+      configurable: true,
+    });
+  });
 });

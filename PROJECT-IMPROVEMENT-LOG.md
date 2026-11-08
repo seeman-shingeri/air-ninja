@@ -12,4 +12,5 @@
 | 8 | Add quick restart options in HUD and pause menu | `src/components/HUD.tsx`, `src/components/AirNinjaGame.tsx` | Completed | 47/47 unit tests passing | Passing | `b461c81` | Pushed |
 | 9 | Add countdown sequence and resume indicator | `src/engine/GameEngine.ts` | Completed | 47/47 unit tests passing | Passing | `77dd6d9` | Pushed |
 | 10 | Improve game instructions, onboarding guide and hotkeys | `src/components/HowToPlayModal.tsx`, `src/components/AirNinjaGame.tsx` | Completed | 47/47 unit tests passing | Passing | `5720b03` | Pushed |
-| 11 | Improve fingertip coordinate smoothing and gap re-anchoring | `src/tracking/OneEuroFilter.ts`, `src/test/coordinate_mapper_and_filter.test.ts` | Completed | 48/48 unit tests passing | Passing | `PENDING` | Pushed |
+| 11 | Improve fingertip coordinate smoothing and gap re-anchoring | `src/tracking/OneEuroFilter.ts`, `src/test/coordinate_mapper_and_filter.test.ts` | Completed | 48/48 unit tests passing | Passing | `35f9c1a` | Pushed |
+| 12 | Improve camera initialization error handling and constraint fallbacks | `src/tracking/CameraManager.ts`, `src/test/lifecycle_and_camera.test.ts` | Completed | 49/49 unit tests passing | Passing | `PENDING` | Pushed |
